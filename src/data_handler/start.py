@@ -42,6 +42,16 @@ def load(dataset_type):
     names = file_utils.file_names(dataset_type)
 
     data = pickle.load(open(names[0], 'rb'))
+
+    clean_data = data
+
+    for i, patient in enumerate(data):
+        for j,visit in enumerate(patient):
+            if(len(visit[2]) == 0):
+                print(clean_data[i])
+                clean_data[i].remove(visit)
+    clean_data = list(filter(lambda x: len(x) > 0, clean_data))
+    data = clean_data
     voc = pickle.load(open(names[1], 'rb'))
     ehr_adj = pickle.load(open(names[2], 'rb'))
 
