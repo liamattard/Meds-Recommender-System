@@ -1,0 +1,5 @@
+*.pkl
+*.csv
+rxnorm2RXCUI.txt
+properties.ini
+wandb/*
