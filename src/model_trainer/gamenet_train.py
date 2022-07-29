@@ -1,5 +1,6 @@
 import torch
 import time
+import wandb
 import pickle
 import numpy as np
 import src.models.gamenet as gamenet
@@ -21,6 +22,14 @@ def get_n_params(model):
     return pp
 
 def train(dataset, dataset_type):
+
+    wandb.init(project="GameNet", entity="liam_dratta")
+    wandb.config = {
+      "learning_rate": 0.0001,
+      "epochs": 50,
+      "batch_size": 1
+    }
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     diag_voc = dataset.voc[0]['diag_voc']
     pro_voc = dataset.voc[0]['pro_voc']
@@ -45,6 +54,9 @@ def train(dataset, dataset_type):
 
     EPOCH = 50
     for epoch in range(EPOCH):
+
+
+
         tic = time.time()
         print ('\nepoch {} --------------------------'.format(epoch + 1))
         model.train()
@@ -81,6 +93,7 @@ def train(dataset, dataset_type):
         history['prauc'].append(prauc)
         history['med'].append(avg_med)
 
+
         if epoch >= 5:
             print ('Med: {}, Ja: {}, F1: {}, PRAUC: {}'.format(
                 np.mean(history['med'][-5:]),
@@ -88,6 +101,16 @@ def train(dataset, dataset_type):
                 np.mean(history['avg_f1'][-5:]),
                 np.mean(history['prauc'][-5:])
                 ))
+
+        wandb.log({"Training Jaccard": ja,
+            "Training f1": avg_f1,
+            "Training recall": avg_r,
+            "Training accuracy": prauc,
+            "Epoch": epoch,
+            "Training average medications": avg_med,
+            "Training precision": avg_p})
+
+        wandb.watch(model)
 
         torch.save(model.state_dict(), open(os.path.join('saved_models', 'game_net', \
             dataset_type.name, 'Epoch_{}_JA_{:.4}.model'.format(epoch, ja)), 'wb'))
@@ -145,6 +168,14 @@ def eval(model, data_eval, voc_size, epoch):
         avg_p.append(adm_avg_p)
         avg_r.append(adm_avg_r)
         avg_f1.append(adm_avg_f1)
+
+
+        wandb.log({"Testing Jaccard": adm_ja,
+            "Testing f1": adm_avg_f1,
+            "Testing recall": adm_avg_r,
+            "Testing accuracy": adm_prauc,
+            "Testing precision": avg_p})
+
         llprint('\rtest step: {} / {}'.format(step, len(data_eval)))
 
 

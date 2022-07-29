@@ -6,11 +6,10 @@ import src.data_handler.modelDataLoader as data_loader
 import src.data_handler.modelDataBuilder as data_builder
 import src.utils.database_utils as db
 
-import pandas as pd
 import configparser
 import logging
 import pickle
-import os
+import dill
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("Data loader")
@@ -43,16 +42,25 @@ def load(dataset_type):
 
     data = pickle.load(open(names[0], 'rb'))
 
-    clean_data = data
+    if dataset_type == Dataset_Type.full:
+        clean_data = data
 
-    for i, patient in enumerate(data):
-        for j,visit in enumerate(patient):
-            if(len(visit[2]) == 0):
-                clean_data[i].remove(visit)
-    clean_data = list(filter(lambda x: len(x) > 0, clean_data))
-    data = clean_data
-    voc = pickle.load(open(names[1], 'rb'))
-    ehr_adj = pickle.load(open(names[2], 'rb'))
+        for i, patient in enumerate(data):
+            for j,visit in enumerate(patient):
+                if(len(visit[2]) == 0):
+                    clean_data[i].remove(visit)
+        clean_data = list(filter(lambda x: len(x) > 0, clean_data))
+        data = clean_data
+
+    voc = None
+    ehr_adj = None
+
+    if dataset_type == Dataset_Type.sota:
+         voc = dill.load(open(names[1], 'rb'))
+         ehr_adj = dill.load(open(names[2], 'rb'))
+    else:
+        voc = pickle.load(open(names[1], 'rb'))
+        ehr_adj = pickle.load(open(names[2], 'rb'))
 
     return Dataset(data=data, voc=voc, ehr_adj=ehr_adj)
 
