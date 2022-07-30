@@ -83,6 +83,8 @@ class Model(nn.Module):
 
         if len(input) > 1:
             visit_weight = F.softmax(torch.mm(query, history_keys.t())) # (1, seq-1)
+            x_temp = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
+            breakpoint()
             weighted_values = visit_weight.mm(history_values) # (1, size)
             fact2 = torch.mm(weighted_values, drug_memory) # (1, dim)
         else:
