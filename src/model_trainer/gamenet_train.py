@@ -170,14 +170,16 @@ def eval(model, data_eval, voc_size, epoch):
         avg_f1.append(adm_avg_f1)
 
 
-        wandb.log({"Testing Jaccard": adm_ja,
-            "Testing f1": adm_avg_f1,
-            "Testing recall": adm_avg_r,
-            "Testing accuracy": adm_prauc,
-            "Testing precision": avg_p})
 
         llprint('\rtest step: {} / {}'.format(step, len(data_eval)))
 
+    wandb.log({"Testing Jaccard": np.mean(ja),
+        "Testing f1": np.mean(avg_f1),
+        "Testing recall": np.mean(avg_r),
+        "Testing accuracy": np.mean(prauc),
+        "Testing jaccard": np.mean(ja),
+        "Testing average medicine": med_cnt/visit_cnt,
+        "Testing precision": np.mean(avg_p)})
 
     llprint('Jaccard: {:.4},  PRAUC: {:.4}, AVG_PRC: {:.4}, AVG_RECALL: {:.4}, AVG_F1: {:.4}, AVG_MED: {:.4}\n'.format(
         np.mean(ja), np.mean(prauc), np.mean(avg_p), np.mean(avg_r), np.mean(avg_f1), med_cnt / visit_cnt
