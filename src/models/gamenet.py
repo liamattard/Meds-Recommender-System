@@ -84,7 +84,6 @@ class Model(nn.Module):
         if len(input) > 1:
             visit_weight = F.softmax(torch.mm(query, history_keys.t())) # (1, seq-1)
             x_temp = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
-            breakpoint()
             weighted_values = visit_weight.mm(history_values) # (1, size)
             fact2 = torch.mm(weighted_values, drug_memory) # (1, dim)
         else:
@@ -93,7 +92,7 @@ class Model(nn.Module):
         output = self.output(torch.cat([query, fact1, fact2], dim=-1)) # (1, dim)
 
         if self.training:
-            neg_pred_prob = F.sigmoid(output)
+            neg_pred_prob = torch.sigmoid(output)
             neg_pred_prob = neg_pred_prob.t() * neg_pred_prob  # (voc_size, voc_size)
             batch_neg = neg_pred_prob
 

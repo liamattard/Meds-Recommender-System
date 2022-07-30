@@ -89,6 +89,8 @@ def train(dataset, dataset_type):
         ja, prauc, avg_p, avg_r, avg_f1, avg_med = eval(model, data_eval, voc_size, epoch)
         print ('training time: {}, test time: {}'.format(time.time() - tic, time.time() - tic2))
 
+        train_ja, train_prauc, train_avg_p, train_avg_r, train_avg_f1, train_avg_med = eval(model, data_train, voc_size, epoch)
+
         history['ja'].append(ja)
         history['avg_p'].append(avg_p)
         history['avg_r'].append(avg_r)
@@ -96,6 +98,21 @@ def train(dataset, dataset_type):
         history['prauc'].append(prauc)
         history['med'].append(avg_med)
 
+        wandb.log({
+            "Epoch": epoch,
+            "Testing Jaccard": ja,
+            "Testing f1": avg_f1,
+            "Testing recall": avg_r,
+            "Testing accuracy": prauc,
+            "Testing average medications": avg_med,
+            "Testing precision": avg_p,
+            "Training Jaccard": train_ja,
+            "Training f1": train_avg_f1,
+            "Training recall": train_avg_r,
+            "Training accuracy": train_prauc,
+            "Training average medications": train_avg_med,
+            "Training precision": train_avg_p
+            })
 
         if epoch >= 5:
             print ('Med: {}, Ja: {}, F1: {}, PRAUC: {}'.format(
@@ -105,14 +122,7 @@ def train(dataset, dataset_type):
                 np.mean(history['prauc'][-5:])
                 ))
 
-        wandb.log({"Training Jaccard": ja,
-            "Training f1": avg_f1,
-            "Training recall": avg_r,
-            "Training accuracy": prauc,
-            "loss": np.mean(loss_array),
-            "Epoch": epoch,
-            "Training average medications": avg_med,
-            "Training precision": avg_p})
+        
 
         wandb.watch(model)
 
@@ -176,15 +186,6 @@ def eval(model, data_eval, voc_size, epoch):
 
 
         llprint('\rtest step: {} / {}'.format(step, len(data_eval)))
-
-    wandb.log({"Testing Jaccard": np.mean(ja),
-        "Testing f1": np.mean(avg_f1),
-        "Testing recall": np.mean(avg_r),
-        "Epoch": epoch,
-        "Testing accuracy": np.mean(prauc),
-        "Testing jaccard": np.mean(ja),
-        "Testing average medicine": med_cnt/visit_cnt,
-        "Testing precision": np.mean(avg_p)})
 
     llprint('Jaccard: {:.4},  PRAUC: {:.4}, AVG_PRC: {:.4}, AVG_RECALL: {:.4}, AVG_F1: {:.4}, AVG_MED: {:.4}\n'.format(
         np.mean(ja), np.mean(prauc), np.mean(avg_p), np.mean(avg_r), np.mean(avg_f1), med_cnt / visit_cnt
