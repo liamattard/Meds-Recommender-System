@@ -100,6 +100,7 @@ def train(dataset, dataset_type):
 
         wandb.log({
             "Epoch": epoch,
+            "Loss": np.mean(loss_array),
             "Testing Jaccard": ja,
             "Testing f1": avg_f1,
             "Testing recall": avg_r,
