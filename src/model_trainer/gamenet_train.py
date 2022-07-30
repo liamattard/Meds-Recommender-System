@@ -75,6 +75,8 @@ def train(dataset, dataset_type):
                 loss_bce = F.binary_cross_entropy_with_logits(target_output1, torch.FloatTensor(loss_bce_target).to(device))
                 loss_multi = F.multilabel_margin_loss(torch.sigmoid(target_output1), torch.LongTensor(loss_multi_target).to(device))
                 loss = 0.9 * loss_bce + 0.1 * loss_multi
+                wandb.log({"loss": loss,
+                            "epoch":epoch})
 
                 optimizer.zero_grad()
                 loss.backward(retain_graph=True)
@@ -176,6 +178,7 @@ def eval(model, data_eval, voc_size, epoch):
     wandb.log({"Testing Jaccard": np.mean(ja),
         "Testing f1": np.mean(avg_f1),
         "Testing recall": np.mean(avg_r),
+        "Epoch": epoch,
         "Testing accuracy": np.mean(prauc),
         "Testing jaccard": np.mean(ja),
         "Testing average medicine": med_cnt/visit_cnt,
