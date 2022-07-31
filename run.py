@@ -15,7 +15,7 @@ import src.models.pure_collaborative as pure_col_model
 def main():
 
     model_type = Model_Type.game_net
-    dataset_type = Dataset_Type.sota
+    dataset_type = Dataset_Type.full
 
     # Load Data
     dataset = load_data.start(dataset_type)

@@ -3,3 +3,4 @@
 rxnorm2RXCUI.txt
 properties.ini
 wandb/*
+__pycache__/
