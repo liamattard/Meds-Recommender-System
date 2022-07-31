@@ -48,31 +48,38 @@ def build_dataset(db):
 
     for patient_count, patient in enumerate(user_visit_map):
         data.append([])
-        for visit_count, visit in enumerate(user_visit_map[patient]):
-            data[patient_count].append([])
+        for visit in user_visit_map[patient]:
+
+            current_visit = []
+            containsNone = False
 
             if visit in visit_diagnoses_map:
                 diagnoses = list(visit_diagnoses_map[visit])
-                data[patient_count][visit_count].append(diagnoses)
+                current_visit.append(diagnoses)
             else:
-                data[patient_count][visit_count].append([])
+                containsNone = True
 
             if visit in visit_procedures_map:
                 procedures = list(visit_procedures_map[visit])
-                data[patient_count][visit_count].append(procedures)
+                current_visit.append(procedures)
             else:
-                data[patient_count][visit_count].append([])
+                containsNone = True
 
             if visit in visit_medicine_map:
                 medicine = list(visit_medicine_map[visit])
-                data[patient_count][visit_count].append(medicine)
+                current_visit.append(medicine)
 
                 for medOne in visit_medicine_map[visit]:
                     for medTwo in visit_medicine_map[visit]:
                         if(medOne != medTwo):
                             ehr_adj[medOne, medTwo] = 1
             else:
-                data[patient_count][visit_count].append([])
+                containsNone = True
+
+            if not containsNone:
+                data[patient_count].append(current_visit)
+
+    data = list(filter(lambda x: len(x) > 0, data))
 
     with open(config["DATASET"]["full_data"], 'wb') as handle:
         pickle.dump(data, handle)
