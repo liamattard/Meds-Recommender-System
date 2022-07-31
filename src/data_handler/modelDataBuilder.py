@@ -8,7 +8,6 @@ import configparser
 import logging
 import pickle
 import pandas as pd
-import os
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("Data loader")

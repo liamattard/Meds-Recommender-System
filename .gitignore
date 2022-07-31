@@ -3,4 +3,5 @@
 rxnorm2RXCUI.txt
 properties.ini
 wandb/*
-__pycache__/
+*/__pycache__/
+saved_models/*

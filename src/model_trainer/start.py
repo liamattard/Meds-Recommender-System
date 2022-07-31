@@ -1,16 +1,13 @@
 from src.utils.constants.model_types import Model_Type
 
-import src.models.pure_collaborative as pure_collaborative
 import src.model_trainer.gamenet_train as gamenet_train
-import torch
-import torch.nn
-import torch.optim
+import src.model_trainer.collaborative as collaborative
 
 def start(model_type, dataset, dataset_type):
     if(model_type == Model_Type.game_net):
         gamenet_train.train(dataset, dataset_type)
 
-    if(model_type == Model_Type.pure_collaborative):
-        return pure_collaborative.Model(dataset, torch.device('cpu'))
+    if(model_type == Model_Type.colab_filtering):
+        collaborative.train(dataset,dataset_type)
 
 
