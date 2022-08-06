@@ -1,6 +1,8 @@
 from src.utils.classes.Dataset import Dataset
 
+from src.utils.constants.dataset_types import Dataset_Type 
 import src.utils.query_handler as query_handler
+import src.utils.file_utils as file_utils 
 
 import numpy as np
 import logging
@@ -36,7 +38,7 @@ def build_pure_col(db):
     with open(config["DATASET"]["past_med_arr"], 'wb') as handle:
         pickle.dump(past_medicine_array, handle)
 
-def build_dataset(db):
+def build_dataset(db, dataset_type):
     visit_diagnoses_map, diag_voc = query_handler.load_visit_diagnoses(db)
     visit_procedures_map, prod_voc = query_handler.load_visit_procedures(db)
     visit_medicine_map, med_voc = query_handler.load_visit_medicine(db)
@@ -75,16 +77,22 @@ def build_dataset(db):
             else:
                 containsNone = True
 
+            if(dataset_type == Dataset_Type.full1V):
+                if len(user_visit_map[patient]) == 1:
+                    containsNone = True
+
             if not containsNone:
                 data[patient_count].append(current_visit)
 
     data = list(filter(lambda x: len(x) > 0, data))
 
-    with open(config["DATASET"]["full_data"], 'wb') as handle:
+    names = file_utils.file_names(dataset_type)
+
+    with open(names[0], 'wb') as handle:
         pickle.dump(data, handle)
 
-    with open(config["DATASET"]["full_voc"], 'wb') as handle:
+    with open(names[1], 'wb') as handle:
         pickle.dump(voc, handle)
 
-    with open(config["DATASET"]["full_ehr_adj"], 'wb') as handle:
+    with open(names[2], 'wb') as handle:
         pickle.dump(ehr_adj, handle)

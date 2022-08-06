@@ -33,8 +33,7 @@ def start(dataset_type):
 
 
 def save(db, dataset_type):
-    if(dataset_type == Dataset_Type.full):
-        data_builder.build_dataset(db)
+        data_builder.build_dataset(db, dataset_type)
 
 def load(dataset_type):
     log.info("Starting loading dataset from directory")
@@ -51,6 +50,7 @@ def load(dataset_type):
     else:
         voc = pickle.load(open(names[1], 'rb'))
         ehr_adj = pickle.load(open(names[2], 'rb'))
+
 
     return Dataset(data=data, voc=voc, ehr_adj=ehr_adj)
 

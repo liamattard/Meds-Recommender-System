@@ -25,3 +25,7 @@ def file_names(dataset_type):
 
     if(dataset_type == Dataset_Type.sota):
         return config["DATASET"]["sota_data"], config["DATASET"]["sota_voc"], config["DATASET"]["sota_ehr_adj"]
+
+    #if(dataset_type == Dataset_Type.full1V):
+    else:
+        return config["DATASET"]["full1V_data"], config["DATASET"]["full1V_voc"], config["DATASET"]["full1V_ehr_adj"]
