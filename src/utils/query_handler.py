@@ -153,18 +153,21 @@ def load_medicine_values_by_user(db):
 
 def make_dict(list_of_items):
     final_map = {}
-    word2idx = {}
-    idx2word = {}
+    # word2idx = {}
+    # idx2word = {}
 
     for row in list_of_items:
         if row[0] in final_map:
-            word2idx, idx2word = append(word2idx, idx2word, row[1])
-            final_map[row[0]].add(word2idx[row[1]])
+            # word2idx, idx2word = append(word2idx, idx2word, row[1])
+            # final_map[row[0]].add(word2idx[row[1]])
+            final_map[row[0]].add(row[1])
         else:
-            word2idx, idx2word = append(word2idx, idx2word, row[1])
-            final_map[row[0]] = {word2idx[row[1]]}
+            # word2idx, idx2word = append(word2idx, idx2word, row[1])
+            # final_map[row[0]] = {word2idx[row[1]]}
+            final_map[row[0]] = {row[1]}
 
-    return final_map, Voc(idx2word, word2idx)
+    # return final_map, Voc(idx2word, word2idx)
+    return final_map
 
 def append(word2idx, idx2word, word):
     if word not in word2idx:
