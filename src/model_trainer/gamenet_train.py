@@ -4,11 +4,13 @@ import wandb
 import pickle
 import numpy as np
 import src.models.gamenet as gamenet
+import src.models.collaborative as collab
 import torch.nn.functional as F
 
 import sys
 from collections import defaultdict
 from torch.optim import Adam
+from src.utils.constants.model_types import Model_Type
 from src.utils.tools import multi_label_metric
 import os
 
@@ -21,7 +23,7 @@ def get_n_params(model):
         pp += nn
     return pp
 
-def train(dataset, dataset_type):
+def train(dataset, dataset_type, model_type):
 
     wandb.init(project="GameNet", entity="liam_dratta")
     wandb.config = {
@@ -43,7 +45,11 @@ def train(dataset, dataset_type):
 
 
     voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(med_voc.idx2word))
-    model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
+    if(model_type == Model_Type.game_net):
+        model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
+    else:
+        model = collab.Model(voc_size, dataset.ehr_adj[0], device, len(dataset.data[0]), voc_size[2])
+
     model.to(device=device)
     print('parameters', get_n_params(model))
 
@@ -68,7 +74,10 @@ def train(dataset, dataset_type):
                 for idx, item in enumerate(adm[2]):
                     loss_multi_target[0][idx] = item
 
-                target_output1, _ = model(seq_input)
+                if(model_type == Model_Type.game_net):
+                    target_output1, _ = model(seq_input)
+                else:
+                    target_output1 = model(idx,seq_input)
 
                 loss_bce = F.binary_cross_entropy_with_logits(target_output1, torch.FloatTensor(loss_bce_target).to(device))
 
@@ -125,7 +134,7 @@ def train(dataset, dataset_type):
 
         wandb.watch(model)
 
-        torch.save(model.state_dict(), open(os.path.join('saved_models', 'game_net', \
+        torch.save(model.state_dict(), open(os.path.join('saved_models', model_type.name, \
             dataset_type.name, 'Epoch_{}_JA_{:.4}.model'.format(epoch, ja)), 'wb'))
 
         if epoch != 0 and best_ja < ja:
