@@ -159,7 +159,8 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
         for adm_idx, adm in enumerate(input):
-            target_output = model((data_train_len+adm_idx),input[:adm_idx+1])
+            # TODO:change to check for model type
+            target_output = model((data_train_len+adm_idx),input[:adm_idx+1], True)
 
             y_gt_tmp = np.zeros(voc_size[2])
             y_gt_tmp[adm[2]] = 1
