@@ -69,7 +69,6 @@ def train(dataset, dataset_type):
                     loss_multi_target[0][idx] = item
 
                 target_output1, _ = model(seq_input)
-                breakpoint()
 
                 loss_bce = F.binary_cross_entropy_with_logits(target_output1, torch.FloatTensor(loss_bce_target).to(device))
 
