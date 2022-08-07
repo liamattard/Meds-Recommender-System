@@ -93,10 +93,10 @@ def train(dataset, dataset_type, model_type):
             llprint('\rtraining step: {} / {}'.format(step, len(data_train))) 
             tic2 = time.time() 
 
-        ja, prauc, avg_p, avg_r, avg_f1, avg_med = eval(model, data_eval, voc_size, epoch)
+        ja, prauc, avg_p, avg_r, avg_f1, avg_med = eval(model, data_eval, voc_size, epoch, (len(data_train[0]) + 1))
         print ('training time: {}, test time: {}'.format(time.time() - tic, time.time() - tic2))
 
-        train_ja, train_prauc, train_avg_p, train_avg_r, train_avg_f1, train_avg_med = eval(model, data_train, voc_size, epoch)
+        train_ja, train_prauc, train_avg_p, train_avg_r, train_avg_f1, train_avg_med = eval(model, data_train, voc_size, epoch,0)
 
         history['ja'].append(ja)
         history['avg_p'].append(avg_p)
@@ -148,7 +148,7 @@ def train(dataset, dataset_type, model_type):
 
 
 
-def eval(model, data_eval, voc_size, epoch):
+def eval(model, data_eval, voc_size, epoch, data_train_len):
     model.eval()
 
     smm_record = []
@@ -159,7 +159,7 @@ def eval(model, data_eval, voc_size, epoch):
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
         for adm_idx, adm in enumerate(input):
-            target_output = model(input[:adm_idx+1])
+            target_output = model((data_train_len+adm_idx),input[:adm_idx+1])
 
             y_gt_tmp = np.zeros(voc_size[2])
             y_gt_tmp[adm[2]] = 1
