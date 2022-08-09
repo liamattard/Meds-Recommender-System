@@ -160,7 +160,9 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
         
         for adm_idx, adm in enumerate(input):
             # TODO:change to check for model type
-            target_output = model((data_train_len+adm_idx),input[:adm_idx+1], True)
+            target_output = model((data_train_len+adm_idx),input[:adm_idx+1])
+
+            #target_output = model((data_train_len+adm_idx),input[:adm_idx+1], True)
 
             y_gt_tmp = np.zeros(voc_size[2])
             y_gt_tmp[adm[2]] = 1
@@ -172,8 +174,8 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
 
             # predioction med set
             y_pred_tmp = target_output.copy()
-            y_pred_tmp[y_pred_tmp>=0.5] = 1
-            y_pred_tmp[y_pred_tmp<0.5] = 0
+            y_pred_tmp[y_pred_tmp>=0.7] = 1
+            y_pred_tmp[y_pred_tmp<0.7] = 0
             y_pred.append(y_pred_tmp)
 
             # prediction label
