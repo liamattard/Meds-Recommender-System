@@ -18,3 +18,8 @@ src/*/__pycache__
 src/data_handler/__pycache__/modelDataBuilder.cpython-39.pyc
 .gitignore
 src/data_handler/__pycache__/start.cpython-39.pyc
+*.pyc
+src/models/__pycache/*.pyc
+.gitignore
+src/model_trainer/__pycache__/start.cpython-39.pyc
+.gitignore
