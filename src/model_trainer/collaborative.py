@@ -61,7 +61,7 @@ def train(dataset, dataset_type):
 
 
                 breakpoint()
-                target_output1, _ = model(0,seq_input)
+                target_output1 = model(0,seq_input)
                 breakpoint()
                 
 

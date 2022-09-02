@@ -21,14 +21,8 @@ def files_exist(dataset_type):
     return exists
 
 def file_names(dataset_type):
-    if(dataset_type == Dataset_Type.full):
-        return config["DATASET"]["full_data"], config["DATASET"]["full_voc"], config["DATASET"]["full_ehr_adj"]
-    if(dataset_type == Dataset_Type.sota):
-        return config["DATASET"]["sota_data"], config["DATASET"]["sota_voc"], config["DATASET"]["sota_ehr_adj"]
-    if(dataset_type == Dataset_Type.full1V):
-        return config["DATASET"]["full1V_data"], config["DATASET"]["full1V_voc"], config["DATASET"]["full1V_ehr_adj"]
-    else:
-        return config["DATASET"]["full_atc_data"], config["DATASET"]["full_atc_voc"], config["DATASET"]["full_atc_ehr_adj"]
+    pre_text = "data/dataset/" + dataset_type.name + "/"
+    return pre_text+"data.pkl", pre_text+"voc.pkl", pre_text+"ehr_adj.pkl", pre_text
 
 def convert_ndc10_to_ndc11(ndcCode):
     """
@@ -84,7 +78,7 @@ def convert_to_atc_using_safedrug(med_pd):
     rxnorm2atc4 = pd.read_csv(RXCUI2atc4_file)
 
     med_pd['RXCUI'] = med_pd['NDC'].map(rxnorm2RXCUI)
-    med_pd.dropna(inplace=True)
+    # med_pd.dropna(inplace=True)
 
     rxnorm2atc4 = rxnorm2atc4.drop(columns=['YEAR', 'MONTH', 'NDC'])
     rxnorm2atc4.drop_duplicates(subset=['RXCUI'], inplace=True)
@@ -99,4 +93,38 @@ def convert_to_atc_using_safedrug(med_pd):
     med_pd = med_pd.rename(columns={'ATC4': 'ATC3'})
     med_pd = med_pd.drop_duplicates()
     med_pd = med_pd.reset_index(drop=True)
+    return med_pd
+
+def my_convert_to_atc_using_safedrug(med_pd):
+
+    RXCUI2atc4_file = "data/preprocessing/RXCUI2atc4.csv"
+    rxnorm2RXCUI_file = "data/preprocessing/rxnorm2RXCUI.txt"
+
+    with open(rxnorm2RXCUI_file, 'r') as f:
+        rxnorm2RXCUI = eval(f.read())
+    rxnorm2atc4 = pd.read_csv(RXCUI2atc4_file)
+
+    med_pd['RXCUI'] = med_pd['NDC'].map(rxnorm2RXCUI)
+    # med_pd.dropna(inplace=True)
+
+    rxnorm2atc4 = rxnorm2atc4.drop(columns=['YEAR', 'MONTH', 'NDC'])
+    rxnorm2atc4.drop_duplicates(subset=['RXCUI'], inplace=True)
+    # Dahal ATC4
+
+    #med_pd.drop(index=med_pd[med_pd['RXCUI'].isin([''])].index, axis=0, inplace=True)
+    med_pd['RXCUI'] = med_pd['RXCUI'].replace('',0)
+    med_pd['RXCUI'] = med_pd['RXCUI'].fillna(0)
+    med_pd['RXCUI'] = med_pd['RXCUI'].astype('int64')
+
+    #med_pd = med_pd.reset_index(drop=True)
+    med_pd = med_pd.merge(rxnorm2atc4, on=['RXCUI'], how='left')
+
+    med_pd.drop(columns=['NDC', 'RXCUI'], inplace=True)
+
+    med_pd = med_pd[med_pd['ATC4'].notna()]
+
+    #med_pd['ATC4'] = med_pd['ATC4'].map(lambda x: x[:4])
+    #med_pd = med_pd.rename(columns={'ATC4': 'ATC3'})
+    #med_pd = med_pd.drop_duplicates()
+    #med_pd = med_pd.reset_index(drop=True)
     return med_pd

@@ -6,10 +6,9 @@ import src.model_trainer.start as train
 
 def main():
 
-    model_type = Model_Type.colab_filtering
-    dataset_type = Dataset_Type.full
+    dataset_type = Dataset_Type.fullATC4
+    model_type = Model_Type.game_net
 
-    # Load Data
     dataset = load_data.start(dataset_type)
     train.start(model_type, dataset, dataset_type)
 

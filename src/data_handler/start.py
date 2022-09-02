@@ -26,14 +26,12 @@ def start(dataset_type):
     if not dataset_exits:
         log.info("Started generating the dataset using PostgreSQL server")
         db.connect()
-        save(db, dataset_type)
+        data_builder.build_dataset(db, dataset_type)
 
     log.info("Started loading the dataset")
     return load(dataset_type)
 
 
-def save(db, dataset_type):
-        data_builder.build_dataset(db, dataset_type)
 
 def load(dataset_type):
     log.info("Starting loading dataset from directory")
@@ -50,7 +48,6 @@ def load(dataset_type):
     else:
         voc = pickle.load(open(names[1], 'rb'))
         ehr_adj = pickle.load(open(names[2], 'rb'))
-
 
     return Dataset(data=data, voc=voc, ehr_adj=ehr_adj)
 

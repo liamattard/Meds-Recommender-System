@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.metrics import jaccard_score, roc_auc_score, precision_score, f1_score, average_precision_score
 
+from src.utils.constants.dataset_types import Dataset_Type
+
 
 def get_list_dimension(myList):
 
@@ -115,3 +117,27 @@ def multi_label_metric(y_gt, y_pred, y_prob):
 
     return ja, prauc, np.mean(avg_prc), np.mean(avg_recall), np.mean(avg_f1)
 
+def is1V(dataset_type):
+    return (dataset_type == Dataset_Type.full1VATC4 or 
+                dataset_type == Dataset_Type.full1VATC3 or
+                    dataset_type == Dataset_Type.full1VNDC)
+
+def isM1V(dataset_type):
+    return (dataset_type == Dataset_Type.fullM1VATC4 or 
+                dataset_type == Dataset_Type.fullM1VATC3 or
+                    dataset_type == Dataset_Type.fullM1VNDC)
+
+def isATC3(dataset_type):
+    return (dataset_type == Dataset_Type.fullATC3 or 
+                dataset_type == Dataset_Type.full1VATC3 or
+                    dataset_type == Dataset_Type.fullM1VATC3)
+
+def isATC4(dataset_type):
+    return (dataset_type == Dataset_Type.fullATC4 or 
+                dataset_type == Dataset_Type.full1VATC4 or
+                    dataset_type == Dataset_Type.fullM1VATC4)
+
+def isNDC(dataset_type):
+    return (dataset_type == Dataset_Type.fullNDC or 
+                dataset_type == Dataset_Type.full1VNDC or
+                    dataset_type == Dataset_Type.fullM1VNDC)

@@ -1,6 +1,10 @@
+from torch import nan
 from src.utils import tools
 from src.utils.classes.voc import Voc
+import src.utils.file_utils as f
+import src.utils.tools as tools
 
+import pandas as pd
 import numpy as np
 
 queries_base_path = "sql_queries/"
@@ -69,10 +73,62 @@ def load_visit_procedures(db):
     visit_procedures_list = db.query(visit_procedures_query)
     return make_dict(visit_procedures_list)
 
-def load_visit_medicine(db):
+def load_visit_medicine(db, dataset_type):
+    if tools.isNDC(dataset_type):
+        medicine_query = open(queries_base_path + "getMedicineNDC.sql").read()
+    else:
+        medicine_query = open(queries_base_path + "getMedicine.sql").read()
+
+    visit_medicine_list = db.query(medicine_query)
+
+    if not tools.isNDC(dataset_type):
+        updated_vocab = create_vocab_file(dataset_type)
+        return make_dict_medicine(visit_medicine_list, updated_vocab)
+    else:
+        return make_dict(visit_medicine_list)
+
+
+
+def load_visit_medicine_old(db):
     medicine_query = open(queries_base_path + "getMedicine.sql").read()
     visit_medicine_list = db.query(medicine_query)
+    x = pd.DataFrame(visit_medicine_list, columns = ['hadm_id', 'NDC', 'drug'])
+    z = f.my_convert_to_atc_using_safedrug(x)
+    breakpoint()
+
     return make_dict(visit_medicine_list)
+
+def create_vocab_file(dataset_type):
+    #voc_query = open(queries_base_path + "getUnqMedicine.sql").read()
+    #voc = db.query(voc_query)
+
+    #x = pd.DataFrame(voc, columns=('drug', 'NDC'))
+    #x['NDC'] = x['NDC'].astype(str)
+    #x['NDC'] = x['NDC'].str.lstrip("0")
+    #x['drug'] = x['drug'].str.strip()
+    y = pd.read_csv('data/preprocessing/updated_vocab.csv')
+
+    y['NDC'] = y['NDC'].replace(np.nan,0)
+    y['NDC'] = y['NDC'].astype(np.int64)
+    y['NDC'] = y['NDC'].astype(str)
+    y['NDC'] = y['NDC'].replace('nan','')
+    #x['NDC'] = x['NDC'].replace('None','')
+    y['NDC'] = y['NDC'].replace('0','')
+    y['NDC'] = y['NDC'].str.lstrip("-")
+
+    #x['combined_x'] = x['drug'] + x['NDC']
+    y['combined'] = y['drug'] + y['NDC']
+    #combined = pd.concat([x,y], axis = 1)
+
+    #combined = combined.drop(['drug', 'RXCUI', 'NDC','combined_x'], axis = 1)
+    #y = y.drop(['drug', 'RXCUI', 'NDC'], axis = 1)
+     
+    if tools.isATC3(dataset_type):
+        zipped = dict(zip(y.combined,y.ATC3))
+    else:
+        zipped = dict(zip(y.combined,y.ATC4))
+
+    return zipped  
 
 def load_user_age_map(db):
 
@@ -150,6 +206,39 @@ def load_medicine_values_by_user(db):
 
     return user_medicine_list, medicine_list
 
+def make_dict_medicine(list_of_items, voc_dict):
+
+    final_map = {}
+
+    for row in list_of_items:
+        if row[0] in final_map:
+            value = get_key(row[1], row[2], voc_dict)
+            if value is not None and value is not np.nan:
+                final_map[row[0]].add(value)
+        else:
+            # word2idx, idx2word = append(word2idx, idx2word, row[1])
+            # final_map[row[0]] = {word2idx[row[1]]}
+            value = get_key(row[1], row[2], voc_dict)
+
+            if value is not None and value is not np.nan:
+                final_map[row[0]] = {value}
+
+    # return final_map, Voc(idx2word, word2idx)
+    return final_map
+
+def get_key(rowOne, rowTwo, diction ):
+        value = None
+
+        if rowTwo != None:
+            value = rowTwo.strip()
+        if rowOne != None:
+            value = value + rowOne.lstrip('0')
+
+        if value in diction:
+            return diction[value]
+        else:
+            return None
+
 
 def make_dict(list_of_items):
     final_map = {}
@@ -170,6 +259,7 @@ def make_dict(list_of_items):
     return final_map
 
 def append(word2idx, idx2word, word):
+    #TODO: CHECK IF IT IS nan
     if word not in word2idx:
         word2idx[word] = len(word2idx)
         idx2word[word2idx[word]] = word

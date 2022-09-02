@@ -25,7 +25,7 @@ def get_n_params(model):
 
 def train(dataset, dataset_type, model_type):
 
-    wandb.init(project="GameNet", entity="liam_dratta")
+    wandb.init(project="GameNet Model", entity="liam_dratta")
     wandb.config = {
       "learning_rate": 0.0001,
       "epochs": 50,
@@ -134,8 +134,13 @@ def train(dataset, dataset_type, model_type):
 
         wandb.watch(model)
 
-        torch.save(model.state_dict(), open(os.path.join('saved_models', model_type.name, \
-            dataset_type.name, 'Epoch_{}_JA_{:.4}.model'.format(epoch, ja)), 'wb'))
+        dir = 'saved_models/' + model_type.name + '/'+ dataset_type.name 
+        path = dir + '/' +  'Epoch_{}_JA_{:.4}.model'.format(epoch, ja)
+
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+        torch.save(model.state_dict(), open(path, 'wb'))
 
         if epoch != 0 and best_ja < ja:
             best_epoch = epoch
@@ -160,7 +165,8 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
         
         for adm_idx, adm in enumerate(input):
             # TODO:change to check for model type
-            target_output = model((data_train_len+adm_idx),input[:adm_idx+1])
+            #target_output = model((data_train_len+adm_idx),input[:adm_idx+1])
+            target_output = model(input[:adm_idx+1])
 
             #target_output = model((data_train_len+adm_idx),input[:adm_idx+1], True)
 
