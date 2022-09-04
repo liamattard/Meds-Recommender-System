@@ -94,7 +94,6 @@ def load_visit_medicine_old(db):
     visit_medicine_list = db.query(medicine_query)
     x = pd.DataFrame(visit_medicine_list, columns = ['hadm_id', 'NDC', 'drug'])
     z = f.my_convert_to_atc_using_safedrug(x)
-    breakpoint()
 
     return make_dict(visit_medicine_list)
 
@@ -134,6 +133,7 @@ def load_user_age_map(db):
 
     age_query = open(queries_base_path + "getAge.sql").read()
     user_age_list = db.query(age_query)
+    user_age_list = list(map(lambda x: (x[0], int(x[1])), user_age_list))
     user_age_map = dict(user_age_list)
 
     return user_age_map

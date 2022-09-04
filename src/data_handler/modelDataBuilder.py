@@ -49,14 +49,25 @@ def build_dataset(db, dataset_type):
 
     visit_medicine_map = query_handler.load_visit_medicine(db, dataset_type)
 
+    user_age_map = query_handler.load_user_age_map(db)
+
     data = []
 
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc()}
+
+    if dataset_type == Dataset_Type.full4Age:
+        voc['age_voc']=  Voc()
 
     number_of_bad_data = 0
 
     is1V = tools.is1V(dataset_type)
     isM1V = tools.isM1V(dataset_type)
+
+    total = 0
+    contains_none_diag= 0
+    contains_none_pro= 0
+    contains_none_med= 0
+    number_of_clashes = 0
 
     for _, patient in enumerate(user_visit_map):
         patient_arr = []
@@ -68,32 +79,42 @@ def build_dataset(db, dataset_type):
             if len(user_visit_map[patient]) < 2:
                 continue
 
+
         for visit in user_visit_map[patient]:
             current_visit = []
             containsNone = False
+            clash = False
 
             if visit in visit_diagnoses_map:
                 diagnoses = list(visit_diagnoses_map[visit])
                 current_visit.append(diagnoses)
             else:
+                contains_none_diag = contains_none_diag + 1
                 containsNone = True
 
             if visit in visit_procedures_map:
                 procedures = list(visit_procedures_map[visit])
                 current_visit.append(procedures)
             else:
+                contains_none_pro = contains_none_pro + 1
+                clash = True
                 containsNone = True
 
             if visit in visit_medicine_map:
                 medicine = list(visit_medicine_map[visit])
                 current_visit.append(medicine)
             else:
+                if clash == True:
+                    number_of_clashes = number_of_clashes + 1
+                contains_none_med= contains_none_med + 1
                 containsNone = True
 
 
             if not containsNone:
+                total = total + len(current_visit[2])
                 new_row, voc = get_final_row(current_visit, voc)
                 patient_arr.append(new_row)
+
 
         if(isM1V):
             if len(patient_arr) > 1:
@@ -103,7 +124,12 @@ def build_dataset(db, dataset_type):
                 data.append(patient_arr)
         else:
             if len(patient_arr) > 0:
-                data.append(patient_arr)
+                if dataset_type == Dataset_Type.full4Age:
+                    user_age = user_age_map[patient]
+                    voc["age_voc"] = append(voc["age_voc"], user_age)
+                    patient_arr.append(voc["age_voc"].word2idx[user_age])
+
+                    data.append(patient_arr)
 
         # Check for how many patients with 1 visit were added
         if(is1V):
@@ -113,11 +139,20 @@ def build_dataset(db, dataset_type):
             if len(patient_arr) == 1:
                 number_of_bad_data = number_of_bad_data + 1
 
-    ehr_adj = np.zeros((len(voc["med_voc"].idx2word), len(voc["med_voc"].idx2word)))
+    print("contains none diag", contains_none_diag)
+    print("contains none pro", contains_none_pro)
+    print("contains none med", contains_none_med)
+    print("clashes", number_of_clashes)
+    print("total", total)
 
     # BUILDING ehr_adj file
+    ehr_adj = np.zeros((len(voc["med_voc"].idx2word), len(voc["med_voc"].idx2word)))
+
     for patient in data:
-        for visit in patient:
+        x = patient
+        if dataset_type == Dataset_Type.full4Age:
+            x = patient[:-1]
+        for visit in x:
             for medOne in visit[2]:
                 for medTwo in visit[2]:
                     if(medOne != medTwo):

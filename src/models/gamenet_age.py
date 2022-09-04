@@ -22,26 +22,33 @@ class Model(nn.Module):
 
         self.query = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(emb_dim * 4, emb_dim),
+
+            # PREV
+            #nn.Linear(emb_dim * 4, emb_dim),
+
+            nn.Linear(emb_dim * 6, emb_dim),
         )
 
-        self.ehr_gcn = GCN(voc_size=vocab_size[2], emb_dim=emb_dim, adj=ehr_adj, device=device)
+        self.ehr_gcn = GCN(voc_size=vocab_size[-1], emb_dim=emb_dim, adj=ehr_adj, device=device)
         self.inter = nn.Parameter(torch.FloatTensor(1))
 
         self.output = nn.Sequential(
             nn.ReLU(),
             nn.Linear(emb_dim * 3, emb_dim * 2),
             nn.ReLU(),
-            nn.Linear(emb_dim * 2, vocab_size[2])
+            nn.Linear(emb_dim * 2, vocab_size[-1])
         )
 
         self.init_weights()
 
-    def forward(self, input):
+    def forward(self, input, age):
 
         # generate medical embeddings and queries
         i1_seq = []
         i2_seq = []
+
+        i3_seq = []
+
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
         for adm in input:
@@ -52,10 +59,18 @@ class Model(nn.Module):
                         .to(self.device)))) # (1,1,dim)
 
             i2 = mean_embedding(self.dropout(self.embeddings[1](torch.LongTensor(adm[1]).unsqueeze(dim=0).to(self.device))))
+
+            i3 = mean_embedding(self.dropout(self.embeddings[2](torch.LongTensor([age]).unsqueeze(dim=0).to(self.device))))
+
             i1_seq.append(i1)
             i2_seq.append(i2)
+            i3_seq.append(i3)
+
         i1_seq = torch.cat(i1_seq, dim=1) #(1,seq,dim)
         i2_seq = torch.cat(i2_seq, dim=1) #(1,seq,dim)
+        i3_seq = torch.cat(i3_seq, dim=1) #(1,seq,dim)
+
+        # Age Embedding
 
         o1, h1 = self.encoders[0](
             i1_seq
@@ -63,7 +78,12 @@ class Model(nn.Module):
         o2, h2 = self.encoders[1](
             i2_seq
         )
-        patient_representations = torch.cat([o1, o2], dim=-1).squeeze(dim=0) # (seq, dim*4)
+
+        o3, h2 = self.encoders[1](
+            i3_seq
+        )
+
+        patient_representations = torch.cat([o1, o2, o3], dim=-1).squeeze(dim=0) # (seq, dim*4)
         queries = self.query(patient_representations) # (seq, dim)
 
         # graph memory module
@@ -75,7 +95,7 @@ class Model(nn.Module):
         if len(input) > 1:
             history_keys = queries[:(queries.size(0)-1)] # (seq-1, dim)
 
-            history_values = np.zeros((len(input)-1, self.vocab_size[2]))
+            history_values = np.zeros((len(input)-1, self.vocab_size[-1]))
             for idx, adm in enumerate(input):
                 if idx == len(input)-1:
                     break

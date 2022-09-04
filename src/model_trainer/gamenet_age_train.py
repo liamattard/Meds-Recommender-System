@@ -3,8 +3,7 @@ import time
 import wandb
 import pickle
 import numpy as np
-import src.models.gamenet as gamenet
-import src.models.collaborative as collab
+import src.models.gamenet_age as gamenet
 import torch.nn.functional as F
 
 import sys
@@ -27,15 +26,16 @@ def train(dataset, dataset_type, model_type):
 
     wandb.init(project="GameNet Model", entity="liam_dratta")
     wandb.config = {
-      "learning_rate": 0.0001,
-      "epochs": 50,
-      "batch_size": 1
+     "learning_rate": 0.0001,
+     "epochs": 50,
+     "batch_size": 1
     }
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     diag_voc = dataset.voc[0]['diag_voc']
     pro_voc = dataset.voc[0]['pro_voc']
     med_voc = dataset.voc[0]['med_voc']
+    age_voc = dataset.voc[0]['age_voc']
 
     split_point = int(len(dataset.data[0]) * 2 / 3)
     eval_len = int(len(dataset.data[0][split_point:]) / 2)
@@ -44,7 +44,7 @@ def train(dataset, dataset_type, model_type):
     data_eval = dataset.data[0][split_point+eval_len:]
 
 
-    voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(med_voc.idx2word))
+    voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word) )
     model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
 
     model.to(device=device)
@@ -62,17 +62,18 @@ def train(dataset, dataset_type, model_type):
         model.train()
         loss_array = []
         for step, input in enumerate(data_train):
+            age = input[-1]
+            input = input[:-1]
             for idx, adm in enumerate(input):
                 seq_input = input[:idx+1]
-                loss_bce_target = np.zeros((1, voc_size[2]))
+                loss_bce_target = np.zeros((1, voc_size[-1]))
                 loss_bce_target[:, adm[2]] = 1
 
-                loss_multi_target = np.full((1, voc_size[2]), -1)
+                loss_multi_target = np.full((1, voc_size[-1]), -1)
                 for idx, item in enumerate(adm[2]):
                     loss_multi_target[0][idx] = item
 
-                breakpoint()
-                target_output1, _ = model(seq_input)
+                target_output1, _ = model(seq_input, age)
 
                 loss_bce = F.binary_cross_entropy_with_logits(target_output1, torch.FloatTensor(loss_bce_target).to(device))
 
@@ -157,15 +158,18 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
 
     for step, input in enumerate(data_eval):
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
+
+        age = input[-1]
+        input = input[:-1]
         
         for adm_idx, adm in enumerate(input):
             # TODO:change to check for model type
             #target_output = model((data_train_len+adm_idx),input[:adm_idx+1])
-            target_output = model(input[:adm_idx+1])
+            target_output = model(input[:adm_idx+1], age)
 
             #target_output = model((data_train_len+adm_idx),input[:adm_idx+1], True)
 
-            y_gt_tmp = np.zeros(voc_size[2])
+            y_gt_tmp = np.zeros(voc_size[-1])
             y_gt_tmp[adm[2]] = 1
             y_gt.append(y_gt_tmp)
 
