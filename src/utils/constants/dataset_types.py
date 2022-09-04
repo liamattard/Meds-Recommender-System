@@ -4,6 +4,7 @@ import enum
 class Dataset_Type(enum.Enum):
 
     full4Age = "Full Dataset with ATC4 codes and age"
+    full3Age = "Full Dataset with ATC3 codes and age"
 
     fullATC4 = "Full Dataset with ATC4 codes"
     full1VATC4 = "Full Dataset w patients that have only 1 visit and ATC4 codes"

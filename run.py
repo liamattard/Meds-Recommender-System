@@ -6,7 +6,7 @@ import src.model_trainer.start as train
 
 def main():
 
-    dataset_type = Dataset_Type.full4Age
+    dataset_type = Dataset_Type.full3Age
     model_type = Model_Type.game_net_age
 
     dataset = load_data.start(dataset_type)

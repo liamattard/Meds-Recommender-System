@@ -126,7 +126,6 @@ def train(dataset, dataset_type, model_type):
                 np.mean(history['prauc'][-5:])
                 ))
 
-        
 
         wandb.watch(model)
 

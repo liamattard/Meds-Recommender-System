@@ -130,7 +130,8 @@ def isM1V(dataset_type):
 def isATC3(dataset_type):
     return (dataset_type == Dataset_Type.fullATC3 or 
                 dataset_type == Dataset_Type.full1VATC3 or
-                    dataset_type == Dataset_Type.fullM1VATC3)
+                    dataset_type == Dataset_Type.fullM1VATC3 or 
+                    dataset_type == Dataset_Type.full3Age)
 
 def isATC4(dataset_type):
     return (dataset_type == Dataset_Type.fullATC4 or 
@@ -141,3 +142,7 @@ def isNDC(dataset_type):
     return (dataset_type == Dataset_Type.fullNDC or 
                 dataset_type == Dataset_Type.full1VNDC or
                     dataset_type == Dataset_Type.fullM1VNDC)
+
+def isAge(dataset_type):
+    return (dataset_type == Dataset_Type.full3Age or
+             dataset_type == Dataset_Type.full4Age)

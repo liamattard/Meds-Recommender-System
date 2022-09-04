@@ -55,13 +55,14 @@ def build_dataset(db, dataset_type):
 
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc()}
 
-    if dataset_type == Dataset_Type.full4Age:
+    isAge = tools.isAge(dataset_type)
+    is1V = tools.is1V(dataset_type)
+    isM1V = tools.isM1V(dataset_type)
+
+    if isAge:
         voc['age_voc']=  Voc()
 
     number_of_bad_data = 0
-
-    is1V = tools.is1V(dataset_type)
-    isM1V = tools.isM1V(dataset_type)
 
     total = 0
     contains_none_diag= 0
@@ -124,7 +125,7 @@ def build_dataset(db, dataset_type):
                 data.append(patient_arr)
         else:
             if len(patient_arr) > 0:
-                if dataset_type == Dataset_Type.full4Age:
+                if isAge:
                     user_age = user_age_map[patient]
                     voc["age_voc"] = append(voc["age_voc"], user_age)
                     patient_arr.append(voc["age_voc"].word2idx[user_age])
@@ -150,7 +151,7 @@ def build_dataset(db, dataset_type):
 
     for patient in data:
         x = patient
-        if dataset_type == Dataset_Type.full4Age:
+        if isAge:
             x = patient[:-1]
         for visit in x:
             for medOne in visit[2]:
