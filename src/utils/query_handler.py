@@ -7,61 +7,9 @@ import src.utils.tools as tools
 import pandas as pd
 import numpy as np
 
+
 queries_base_path = "sql_queries/"
 
-
-def load(db):
-
-    user_med_list, med_set = load_medicine_values_by_user(db)
-    _, visit_count_map, user_visit_map = load_ordered_visits(db)
-    visit_medicine_map = load_visit_medicine(db)
-
-    med_ids = tools.generate_med_ids(med_set)
-
-    final_list = []
-    medicine_list = []
-    has_past_count = 0
-
-    for row in user_med_list:
-        visit_count = visit_count_map[row[1]]
-        past_medicine_set = set()
-        has_past = False
-        if visit_count > 0:
-            has_past_count = has_past_count + 1
-            has_past = True
-            for i in range(visit_count):
-                past_visit = user_visit_map[row[0]][i]
-                if past_visit in visit_medicine_map:
-                    past_medicine = list(visit_medicine_map[past_visit])
-                    past_medicine_set.update(past_medicine)
-
-        medicine_list.append(list(past_medicine_set))
-        final_list.append([row[0], row[2], med_ids[row[2]], has_past])
-
-    _, y = tools.get_list_dimension(medicine_list)
-    past_medicine_array = np.zeros((has_past_count, y), dtype="S4")
-
-    temp_count = 0
-    for i, row in enumerate(final_list):
-        if row[3]:
-            for j, med in enumerate(medicine_list[i]):
-                past_medicine_array[temp_count][j] = str(med_ids[med])
-            temp_count = temp_count + 1
-
-    # for i, row in enumerate(medicine_list):
-        # for j, val in enumerate(row):
-            # past_medicine_array[i][j] = med_ids[val]
-
-    # for i, row in enumerate(medicine_list):
-        # past_medicine_array = []
-        # j = 0
-
-        # for j, val in enumerate(row):
-            # past_medicine_array.append(med_ids[val])
-        # past_medicine_array.extend('0'*(y-j))
-        # final_list[i].append(past_medicine_array)
-
-    return final_list, med_set, past_medicine_array
 
 def load_visit_diagnoses(db):
     visit_diagnoses_query = open(queries_base_path + "getDiagnoses.sql").read()
@@ -146,6 +94,24 @@ def load_user_gender_map(db):
     user_gender_map = dict(user_gender_list)
 
     return user_gender_map
+
+def load_user_visit_time(db):
+    visit_query = open(queries_base_path + "getOrderedVisitsByTime.sql").read()
+    user_visit_list = db.query(visit_query)
+
+    #Converting DateTime to Date
+    user_visit_list = list(map(lambda x: (x[0].date(), x[1]),user_visit_list))
+    #number_of_visits = {}
+    visit_by_time = make_dict(user_visit_list)
+    #for row in user_visit_list:
+     #   date = row[2]
+      #  if date in number_of_visits:
+       #     number_of_visits[date] = number_of_visits[date] + 1
+       # else:
+        #    number_of_visits[date] = 1
+
+    return visit_by_time
+
 
 def load_user_visit_map(db):
 
@@ -265,3 +231,56 @@ def append(word2idx, idx2word, word):
         idx2word[word2idx[word]] = word
     return word2idx, idx2word
 
+# deprecated
+def load(db):
+
+    user_med_list, med_set = load_medicine_values_by_user(db)
+    _, visit_count_map, user_visit_map = load_ordered_visits(db)
+    visit_medicine_map = load_visit_medicine(db, None)
+
+    med_ids = tools.generate_med_ids(med_set)
+
+    final_list = []
+    medicine_list = []
+    has_past_count = 0
+
+    for row in user_med_list:
+        visit_count = visit_count_map[row[1]]
+        past_medicine_set = set()
+        has_past = False
+        if visit_count > 0:
+            has_past_count = has_past_count + 1
+            has_past = True
+            for i in range(visit_count):
+                past_visit = user_visit_map[row[0]][i]
+                if past_visit in visit_medicine_map:
+                    past_medicine = list(visit_medicine_map[past_visit])
+                    past_medicine_set.update(past_medicine)
+
+        medicine_list.append(list(past_medicine_set))
+        final_list.append([row[0], row[2], med_ids[row[2]], has_past])
+
+    _, y = tools.get_list_dimension(medicine_list)
+    past_medicine_array = np.zeros((has_past_count, y), dtype="S4")
+
+    temp_count = 0
+    for i, row in enumerate(final_list):
+        if row[3]:
+            for j, med in enumerate(medicine_list[i]):
+                past_medicine_array[temp_count][j] = str(med_ids[med])
+            temp_count = temp_count + 1
+
+    # for i, row in enumerate(medicine_list):
+        # for j, val in enumerate(row):
+            # past_medicine_array[i][j] = med_ids[val]
+
+    # for i, row in enumerate(medicine_list):
+        # past_medicine_array = []
+        # j = 0
+
+        # for j, val in enumerate(row):
+            # past_medicine_array.append(med_ids[val])
+        # past_medicine_array.extend('0'*(y-j))
+        # final_list[i].append(past_medicine_array)
+
+    return final_list, med_set, past_medicine_array

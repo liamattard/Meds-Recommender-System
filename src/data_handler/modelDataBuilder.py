@@ -7,6 +7,7 @@ import src.utils.file_utils as file_utils
 import src.utils.tools as tools 
 
 import os
+import dill
 import numpy as np
 import logging
 import configparser
@@ -25,34 +26,88 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("Data loader")
 
 
-def build_pure_col(db):
-    user_med_list, med_set, past_medicine_array = query_handler.load(db)
-    user_medicine_pd = pd.DataFrame(
-                            user_med_list,
-                            columns=['subject_id', 'drug', 'drug_id',
-                                     'has_past_medicine'])
 
-    with open(config["DATASET"]["medicine_set"], 'wb') as handle:
-        pickle.dump(med_set, handle)
-
-    with open(config["DATASET"]["user_med_pd"], 'wb') as handle:
-        pickle.dump(user_medicine_pd, handle)
-
-    with open(config["DATASET"]["past_med_arr"], 'wb') as handle:
-        pickle.dump(past_medicine_array, handle)
-
-def build_dataset(db, dataset_type):
+def build_realistic_dataset(db, dataset_type):
 
     visit_diagnoses_map = query_handler.load_visit_diagnoses(db)
     visit_procedures_map = query_handler.load_visit_procedures(db)
-    _, user_visit_map = query_handler.load_user_visit_map(db)
-
+    visit_user_map, _= query_handler.load_user_visit_map(db)
+    visit_by_time = query_handler.load_user_visit_time(db)
     visit_medicine_map = query_handler.load_visit_medicine(db, dataset_type)
-
     user_age_map = query_handler.load_user_age_map(db)
 
-    data = []
+    data_train = []
+    data_test = []
+    voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc(), 'age_voc': Voc(), 'patient_voc': Voc()}
 
+    splitpoint = int(len(visit_by_time)* 80/100)
+    train = list(visit_by_time.keys())[0:splitpoint]
+    test = list(visit_by_time.keys())[splitpoint:]
+    list_of_train_patients = []
+    list_of_test_patients = []
+
+    def get_visit(date, voc):
+        visits_arr = []
+        for visit in visit_by_time[date]:
+            visit_arr , voc = get_visit_arr(visit, 
+                    visit_diagnoses_map, visit_procedures_map,
+                    visit_medicine_map, voc)
+
+            if len(visit_arr) > 0:
+
+                patient_id = visit_user_map[visit]
+                user_age = user_age_map[patient_id]
+                voc["age_voc"] = append(voc["age_voc"], user_age)
+                voc["patient_voc"] = append(voc["patient_voc"], patient_id)
+                visit_arr.append(voc["age_voc"].word2idx[user_age])
+                visit_arr.append(voc["patient_voc"].word2idx[patient_id])
+                visits_arr.append(visit_arr)
+
+        return visits_arr, voc
+
+
+    for date in train:
+        visit_arr, voc = get_visit(date,voc)
+        if len(visit_arr) > 0:
+            for i in visit_arr:
+                list_of_train_patients.append(i[-1])
+            data_train = data_train + visit_arr
+
+    for date in test:
+        visit_arr, voc = get_visit(date,voc)
+        if len(visit_arr) > 0:
+            for i in visit_arr:
+                list_of_test_patients.append(i[-1])
+            data_test= data_test + visit_arr
+
+    ehr_adj = build_ehr_adj(voc, data_train, False, True)
+
+    # Saving files
+    names = file_utils.file_names(dataset_type)
+
+    if not os.path.exists(names[3]):
+        os.makedirs(names[3])
+
+    with open(names[0], 'w+b') as handle:
+        pickle.dump([data_train, data_test], handle)
+
+    with open(names[1], 'w+b') as handle:
+        pickle.dump(voc, handle)
+
+    with open(names[2], 'w+b') as handle:
+        pickle.dump(ehr_adj, handle)
+
+def build_dataset(db, dataset_type):
+
+    # Loading Data From Database
+    visit_diagnoses_map = query_handler.load_visit_diagnoses(db)
+    visit_procedures_map = query_handler.load_visit_procedures(db)
+    _, user_visit_map = query_handler.load_user_visit_map(db)
+    visit_medicine_map = query_handler.load_visit_medicine(db, dataset_type)
+    user_age_map = query_handler.load_user_age_map(db)
+
+    list_of_dates = []
+    data = []
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc()}
 
     isAge = tools.isAge(dataset_type)
@@ -64,58 +119,25 @@ def build_dataset(db, dataset_type):
 
     number_of_bad_data = 0
 
-    total = 0
-    contains_none_diag= 0
-    contains_none_pro= 0
-    contains_none_med= 0
-    number_of_clashes = 0
-
     for _, patient in enumerate(user_visit_map):
-        patient_arr = []
 
         if(is1V):
             if len(user_visit_map[patient]) > 1:
                 continue
         elif(isM1V):
+            #TODO: I think here I should have included the 2
             if len(user_visit_map[patient]) < 2:
                 continue
 
+        patient_arr = []
 
         for visit in user_visit_map[patient]:
-            current_visit = []
-            containsNone = False
-            clash = False
-
-            if visit in visit_diagnoses_map:
-                diagnoses = list(visit_diagnoses_map[visit])
-                current_visit.append(diagnoses)
-            else:
-                contains_none_diag = contains_none_diag + 1
-                containsNone = True
-
-            if visit in visit_procedures_map:
-                procedures = list(visit_procedures_map[visit])
-                current_visit.append(procedures)
-            else:
-                contains_none_pro = contains_none_pro + 1
-                clash = True
-                containsNone = True
-
-            if visit in visit_medicine_map:
-                medicine = list(visit_medicine_map[visit])
-                current_visit.append(medicine)
-            else:
-                if clash == True:
-                    number_of_clashes = number_of_clashes + 1
-                contains_none_med= contains_none_med + 1
-                containsNone = True
-
-
-            if not containsNone:
-                total = total + len(current_visit[2])
-                new_row, voc = get_final_row(current_visit, voc)
-                patient_arr.append(new_row)
-
+            visit_arr, voc = get_visit_arr(visit, 
+                    visit_diagnoses_map, visit_procedures_map,
+                    visit_medicine_map, voc)
+            if visit_arr != []:
+                list_of_dates.append(visit)
+                patient_arr.append(visit_arr)
 
         if(isM1V):
             if len(patient_arr) > 1:
@@ -130,7 +152,7 @@ def build_dataset(db, dataset_type):
                     voc["age_voc"] = append(voc["age_voc"], user_age)
                     patient_arr.append(voc["age_voc"].word2idx[user_age])
 
-                    data.append(patient_arr)
+                data.append(patient_arr)
 
         # Check for how many patients with 1 visit were added
         if(is1V):
@@ -140,32 +162,24 @@ def build_dataset(db, dataset_type):
             if len(patient_arr) == 1:
                 number_of_bad_data = number_of_bad_data + 1
 
-    print("contains none diag", contains_none_diag)
-    print("contains none pro", contains_none_pro)
-    print("contains none med", contains_none_med)
-    print("clashes", number_of_clashes)
-    print("total", total)
+    if(is1V or isM1V):
+        print("number_of_bad_data = ", number_of_bad_data)
 
-    # BUILDING ehr_adj file
-    ehr_adj = np.zeros((len(voc["med_voc"].idx2word), len(voc["med_voc"].idx2word)))
+    ehr_adj = build_ehr_adj(voc, data, isAge, False)
 
-    for patient in data:
-        x = patient
-        if isAge:
-            x = patient[:-1]
-        for visit in x:
-            for medOne in visit[2]:
-                for medTwo in visit[2]:
-                    if(medOne != medTwo):
-                        ehr_adj[medOne, medTwo] = 1
+    breakpoint()
+    split_point = int(len(data[0]) * 2 / 3)
+    eval_len = int(len(dataset.data[0][split_point:]) / 2)
+
+    data_train = dataset.data[0][:split_point]
+    data_eval = dataset.data[0][split_point+eval_len:]
+
 
     # removing empty rows
     data = list(filter(lambda x: len(x) > 0, data))
 
+    # Saving files
     names = file_utils.file_names(dataset_type)
-
-    if(is1V or isM1V):
-        print("number_of_bad_data = ", number_of_bad_data)
 
     if not os.path.exists(names[3]):
         os.makedirs(names[3])
@@ -178,6 +192,35 @@ def build_dataset(db, dataset_type):
 
     with open(names[2], 'w+b') as handle:
         pickle.dump(ehr_adj, handle)
+
+
+def get_visit_arr(visit, visit_diagnoses_map, visit_procedures_map, visit_medicine_map, voc):
+        
+        current_visit = []
+        new_row = []
+        containsNone = False
+
+        if visit in visit_diagnoses_map:
+            diagnoses = list(visit_diagnoses_map[visit])
+            current_visit.append(diagnoses)
+        else:
+            containsNone = True
+
+        if visit in visit_procedures_map:
+            procedures = list(visit_procedures_map[visit])
+            current_visit.append(procedures)
+        else:
+            containsNone = True
+
+        if visit in visit_medicine_map:
+            medicine = list(visit_medicine_map[visit])
+            current_visit.append(medicine)
+        else:
+            containsNone = True
+
+        if not containsNone:
+            new_row, voc = get_final_row(current_visit, voc)
+        return new_row, voc
 
 
 def get_final_row(current_visit, voc):
@@ -200,3 +243,68 @@ def append(voc, word):
         voc.word2idx[word] = len(voc.word2idx)
         voc.idx2word[voc.word2idx[word]] = word
     return voc
+
+
+def build_sota_dataset():
+    data = pickle.load(open('data/dataset/sota/data.pkl','rb'))
+    voc = dill.load(open('data/dataset/sota/voc.pkl','rb'))
+
+    split_point = int(len(data) * 80/100)
+
+    data_train = data[:split_point]
+    data_eval = data[split_point:]
+
+    data = [data_train, data_eval]
+
+    ehr_adj = build_ehr_adj(voc, data_train, False, False)
+
+    names = file_utils.file_names(Dataset_Type.sota)
+
+    if not os.path.exists(names[3]):
+        os.makedirs(names[3])
+
+    with open(names[0], 'w+b') as handle:
+        pickle.dump(data, handle)
+
+    with open(names[2], 'w+b') as handle:
+        pickle.dump(ehr_adj, handle)
+
+
+
+def build_ehr_adj(voc, data, isAge, isRealistic):
+    ehr_adj = np.zeros((len(voc["med_voc"].idx2word), len(voc["med_voc"].idx2word)))
+
+    for patient in data:
+        x = patient
+
+        if isAge:
+            x = patient[:-1]
+        elif isRealistic:
+            x = [patient[:-2]]
+
+        for visit in x:
+            for i,medOne in enumerate(visit[2]):
+                for j,medTwo in enumerate(visit[2]):
+                    if j<=i:
+                        continue
+                    ehr_adj[medOne, medTwo] = 1
+                    ehr_adj[medTwo, medOne] = 1
+
+    return ehr_adj
+
+#deprecated
+def build_pure_col(db):
+    user_med_list, med_set, past_medicine_array = query_handler.load(db)
+    user_medicine_pd = pd.DataFrame(
+                            user_med_list,
+                            columns=['subject_id', 'drug', 'drug_id',
+                                     'has_past_medicine'])
+
+    with open(config["DATASET"]["medicine_set"], 'wb') as handle:
+        pickle.dump(med_set, handle)
+
+    with open(config["DATASET"]["user_med_pd"], 'wb') as handle:
+        pickle.dump(user_medicine_pd, handle)
+
+    with open(config["DATASET"]["past_med_arr"], 'wb') as handle:
+        pickle.dump(past_medicine_array, handle)

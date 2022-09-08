@@ -26,11 +26,16 @@ def start(dataset_type):
     if not dataset_exits:
         log.info("Started generating the dataset using PostgreSQL server")
         db.connect()
-        data_builder.build_dataset(db, dataset_type)
+
+        if dataset_type == Dataset_Type.sota:
+            data_builder.build_sota_dataset()
+        elif dataset_type == Dataset_Type.realistic4:
+            data_builder.build_realistic_dataset(db, dataset_type)
+        else:
+            data_builder.build_dataset(db, dataset_type)
 
     log.info("Started loading the dataset")
     return load(dataset_type)
-
 
 
 def load(dataset_type):

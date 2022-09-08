@@ -3,6 +3,9 @@ from sklearn.metrics import jaccard_score, roc_auc_score, precision_score, f1_sc
 
 from src.utils.constants.dataset_types import Dataset_Type
 
+def llprint(message):
+    sys.stdout.write(message)
+    sys.stdout.flush()
 
 def get_list_dimension(myList):
 
@@ -23,6 +26,15 @@ def generate_med_ids(mySet):
         myDict[med] = i
 
     return myDict
+
+def get_n_params(model):
+    pp=0
+    for p in list(model.parameters()):
+        nn=1
+        for s in list(p.size()):
+            nn = nn*s
+        pp += nn
+    return pp
 
 def multi_label_metric(y_gt, y_pred, y_prob):
 
@@ -146,3 +158,6 @@ def isNDC(dataset_type):
 def isAge(dataset_type):
     return (dataset_type == Dataset_Type.full3Age or
              dataset_type == Dataset_Type.full4Age)
+
+def isByDate(dataset_type):
+    return (dataset_type == Dataset_Type.realistic4)

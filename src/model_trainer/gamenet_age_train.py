@@ -6,21 +6,24 @@ import numpy as np
 import src.models.gamenet_age as gamenet
 import torch.nn.functional as F
 
-import sys
 from collections import defaultdict
 from torch.optim import Adam
-from src.utils.constants.model_types import Model_Type
 from src.utils.tools import multi_label_metric
+from src.utils.tools import llprint 
+from src.utils.tools import get_n_params
 import os
 
-def get_n_params(model):
-    pp=0
-    for p in list(model.parameters()):
-        nn=1
-        for s in list(p.size()):
-            nn = nn*s
-        pp += nn
-    return pp
+def load_data(dataset):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    diag_voc = dataset.voc[0]['diag_voc']
+    pro_voc = dataset.voc[0]['pro_voc']
+    med_voc = dataset.voc[0]['med_voc']
+    age_voc = dataset.voc[0]['age_voc']
+
+    voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word) )
+    return voc_size, device
+
 
 def train(dataset, dataset_type, model_type):
 
@@ -31,20 +34,13 @@ def train(dataset, dataset_type, model_type):
      "batch_size": 1
     }
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    diag_voc = dataset.voc[0]['diag_voc']
-    pro_voc = dataset.voc[0]['pro_voc']
-    med_voc = dataset.voc[0]['med_voc']
-    age_voc = dataset.voc[0]['age_voc']
-
     split_point = int(len(dataset.data[0]) * 2 / 3)
     eval_len = int(len(dataset.data[0][split_point:]) / 2)
-
     data_train = dataset.data[0][:split_point]
     data_eval = dataset.data[0][split_point+eval_len:]
 
+    voc_size, device = load_data(dataset)
 
-    voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word) )
     model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
 
     model.to(device=device)
@@ -89,10 +85,10 @@ def train(dataset, dataset_type, model_type):
             llprint('\rtraining step: {} / {}'.format(step, len(data_train))) 
             tic2 = time.time() 
 
-        ja, prauc, avg_p, avg_r, avg_f1, avg_med = eval(model, data_eval, voc_size, epoch, (len(data_train[0]) + 1))
+        ja, prauc, avg_p, avg_r, avg_f1, avg_med = eval(model, data_eval, voc_size)
         print ('training time: {}, test time: {}'.format(time.time() - tic, time.time() - tic2))
 
-        train_ja, train_prauc, train_avg_p, train_avg_r, train_avg_f1, train_avg_med = eval(model, data_train, voc_size, epoch,0)
+        train_ja, train_prauc, train_avg_p, train_avg_r, train_avg_f1, train_avg_med = eval(model, data_train, voc_size)
 
         history['ja'].append(ja)
         history['avg_p'].append(avg_p)
@@ -148,7 +144,7 @@ def train(dataset, dataset_type, model_type):
 
 
 
-def eval(model, data_eval, voc_size, epoch, data_train_len):
+def eval(model, data_eval, voc_size):
     model.eval()
 
     smm_record = []
@@ -162,11 +158,8 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
         input = input[:-1]
         
         for adm_idx, adm in enumerate(input):
-            # TODO:change to check for model type
-            #target_output = model((data_train_len+adm_idx),input[:adm_idx+1])
-            target_output = model(input[:adm_idx+1], age)
 
-            #target_output = model((data_train_len+adm_idx),input[:adm_idx+1], True)
+            target_output = model(input[:adm_idx+1], age)
 
             y_gt_tmp = np.zeros(voc_size[-1])
             y_gt_tmp[adm[2]] = 1
@@ -198,8 +191,6 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
         avg_r.append(adm_avg_r)
         avg_f1.append(adm_avg_f1)
 
-
-
         llprint('\rtest step: {} / {}'.format(step, len(data_eval)))
 
     llprint('Jaccard: {:.4},  PRAUC: {:.4}, AVG_PRC: {:.4}, AVG_RECALL: {:.4}, AVG_F1: {:.4}, AVG_MED: {:.4}\n'.format(
@@ -208,8 +199,34 @@ def eval(model, data_eval, voc_size, epoch, data_train_len):
 
     return np.mean(ja), np.mean(prauc), np.mean(avg_p), np.mean(avg_r), np.mean(avg_f1), med_cnt / visit_cnt
 
+def test(model_path, dataset):
 
-def llprint(message):
-    sys.stdout.write(message)
-    sys.stdout.flush()
+    split_point = int(len(dataset.data[0]) * 2 / 3)
+    eval_len = int(len(dataset.data[0][split_point:]) / 2)
+    data_test = dataset.data[0][split_point:split_point + eval_len]
+
+    voc_size, device = load_data(dataset)
+    model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
+
+    model.load_state_dict(torch.load(open(model_path, 'rb'), map_location=device))
+    model.to(device=device)
+
+    tic = time.time()
+    result = []
+    for _ in range(10):
+        test_sample = np.random.choice(data_test, round(len(data_test) * 0.8), replace=True)
+        eval(model, test_sample, voc_size)
+        #result.append([ddi_rate, ja, avg_f1, prauc, avg_med])
+
+    result = np.array(result)
+    mean = result.mean(axis=0)
+    std = result.std(axis=0)
+
+    outstring = ""
+    for m, s in zip(mean, std):
+        outstring += "{:.4f} $\pm$ {:.4f} & ".format(m, s)
+
+    print (outstring)
+    print ('test time: {}'.format(time.time() - tic))
+    return
 

@@ -13,7 +13,7 @@ config.sections()
 config.read("properties.ini")
 
 def files_exist(dataset_type):
-    log.info("Checking if Datasets already generated")
+    log.info("Checking if Datasets already generated" + dataset_type.name)
     names = file_names(dataset_type)
     exists = True
     for name in names:

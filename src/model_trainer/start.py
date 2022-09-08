@@ -10,3 +10,6 @@ def start(model_type, dataset, dataset_type):
 
 
 
+def test(path, dataset):
+    gamenet_age_train.test(path, dataset)
+
