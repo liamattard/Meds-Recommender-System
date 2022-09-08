@@ -1,3 +1,5 @@
+#DEPRECATED
+
 class Dataset:
     def __init__(self, 
                  data=None,

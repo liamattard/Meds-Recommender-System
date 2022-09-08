@@ -3,6 +3,8 @@ import time
 from src.models.collaborative import Model
 import src.models.gamenet_modified as gamenet
 
+#DEPRECATED CLASS
+
 from collections import defaultdict
 from torch.optim import Adam
 

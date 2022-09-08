@@ -1,5 +1,6 @@
 from src.utils.classes.Dataset import Dataset
 
+#DEPRECATED CLASS
 import numpy as np
 import logging
 
@@ -22,5 +23,3 @@ def generate_pure_coll(user_med_pd, med_set):
     log.info("Finished generating dataset for model type: Pure Coll Model ")
     return dataset
 
-def generate_gamenet_full():
-    print("hello")

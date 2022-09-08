@@ -2,6 +2,7 @@ from src.utils.constants.model_types import Model_Type
 from torch.optim import Adam
 from sklearn.model_selection import train_test_split
 
+#DEPRECATED CLASS
 
 import os
 import wandb

@@ -2,7 +2,6 @@ from src.utils.constants.dataset_types import Dataset_Type
 from src.utils.classes.Dataset import Dataset
 
 import src.utils.file_utils as file_utils 
-import src.data_handler.modelDataLoader as data_loader
 import src.data_handler.modelDataBuilder as data_builder
 import src.utils.database_utils as db
 
