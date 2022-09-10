@@ -1,3 +1,4 @@
+from operator import index
 from src.utils.constants.dataset_types import Dataset_Type 
 from src.utils.classes.voc import Voc
 import src.utils.query_handler as query_handler
@@ -20,7 +21,7 @@ def build_realistic_dataset(db, dataset_type):
 
     visit_diagnoses_map = query_handler.load_visit_diagnoses(db)
     visit_procedures_map = query_handler.load_visit_procedures(db)
-    visit_user_map, _= query_handler.load_user_visit_map(db)
+    visit_user_map, user_visit_map = query_handler.load_user_visit_map(db)
     visit_by_time = query_handler.load_user_visit_time(db)
     visit_medicine_map = query_handler.load_visit_medicine(db, dataset_type)
     user_age_map = query_handler.load_user_age_map(db)
@@ -31,7 +32,7 @@ def build_realistic_dataset(db, dataset_type):
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc(), 'age_voc':
             Voc(), 'patient_voc': Voc()}
 
-    splitpoint = int(len(visit_by_time)* 80/100)
+    splitpoint = int(len(visit_by_time) * 80/100)
     train = list(visit_by_time.keys())[0:splitpoint]
     test = list(visit_by_time.keys())[splitpoint:]
     list_of_train_patients = []
@@ -45,13 +46,32 @@ def build_realistic_dataset(db, dataset_type):
                     visit_medicine_map, voc)
 
             if len(visit_arr) > 0:
-
+                #Getting patient ID
                 patient_id = visit_user_map[visit]
+                voc["patient_voc"] = utils.append(voc["patient_voc"], patient_id)
+
+                #Getting patient Age
                 user_age = user_age_map[patient_id]
                 voc["age_voc"] = utils.append(voc["age_voc"], user_age)
-                voc["patient_voc"] = utils.append(voc["patient_voc"], patient_id)
+
+                past_visits = user_visit_map[patient_id]
+                past_visits_arr = []
+
+                #Getting past visits
+                current_visit_number = past_visits.index(visit)
+                if current_visit_number > 0:
+                    for past_visit in past_visits[:current_visit_number]:
+                        past_visit_arr, voc = utils.get_visit_arr(past_visit, 
+                                visit_diagnoses_map, visit_procedures_map,
+                                visit_medicine_map, voc)
+
+                        if len(past_visit_arr) > 0:
+                            past_visits_arr.append(past_visit_arr)
+
                 visit_arr.append(voc["age_voc"].word2idx[user_age])
                 visit_arr.append(voc["patient_voc"].word2idx[patient_id])
+                visit_arr.append(past_visits_arr)
+
                 visits_arr.append(visit_arr)
 
         return visits_arr, voc
@@ -90,7 +110,6 @@ def build_realistic_dataset(db, dataset_type):
 
 def build_dataset(db, dataset_type):
 
-    # Loading Data From Database
     visit_diagnoses_map = query_handler.load_visit_diagnoses(db)
     visit_procedures_map = query_handler.load_visit_procedures(db)
     _, user_visit_map = query_handler.load_user_visit_map(db)
@@ -156,18 +175,17 @@ def build_dataset(db, dataset_type):
     if(is1V or isM1V):
         print("number_of_bad_data = ", number_of_bad_data)
 
-    ehr_adj = utils.build_ehr_adj(voc, data, isAge, False)
 
-    breakpoint()
-    split_point = int(len(data[0]) * 2 / 3)
-    eval_len = int(len(dataset.data[0][split_point:]) / 2)
-
-    data_train = dataset.data[0][:split_point]
-    data_eval = dataset.data[0][split_point+eval_len:]
-
-
-    # removing empty rows
     data = list(filter(lambda x: len(x) > 0, data))
+
+    split_point = int(len(data) * 80/100)
+
+    data_train = data[:split_point]
+    data_eval = data[split_point:]
+
+    ehr_adj = utils.build_ehr_adj(voc, data_train, isAge, False)
+
+    data = [data_train, data_eval]
 
     # Saving files
     names = file_utils.file_names(dataset_type)

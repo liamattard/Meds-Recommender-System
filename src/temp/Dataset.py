@@ -1,9 +1,10 @@
+#DEPRECATED
+
 class Dataset:
     def __init__(self, 
                  data=None,
                  voc=None,
                  ehr_adj=None,
-                #DEPRECATED
                  unique_medicine_names=None,
                  unique_user_ids=None,
                  unique_medicine_ids=None,
@@ -17,7 +18,6 @@ class Dataset:
         self.data=data,
         self.voc=voc,
         self.ehr_adj=ehr_adj,
-        #DEPRECATED
         self.unique_medicine_names = unique_medicine_names
         self.unique_medicine_ids = unique_medicine_ids
         self.unique_user_ids = unique_user_ids

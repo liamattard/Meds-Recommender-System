@@ -4,6 +4,7 @@ from src.utils.classes.Dataset import Dataset
 import src.utils.file_utils as file_utils 
 import src.data_handler.modelDataBuilder as data_builder
 import src.utils.database_utils as db
+import src.utils.tools as tools
 
 import configparser
 import logging
@@ -46,7 +47,7 @@ def load(dataset_type):
     voc = None
     ehr_adj = None
 
-    if dataset_type == Dataset_Type.sota:
+    if tools.isSota(dataset_type):
          voc = dill.load(open(names[1], 'rb'))
          ehr_adj = dill.load(open(names[2], 'rb'))
     else:

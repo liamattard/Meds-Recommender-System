@@ -20,6 +20,7 @@ class Dataset_Type(enum.Enum):
     full1VNDC = "Full Dataset w patients that have only 1 visit and NDC codes"
     fullM1VNDC = "Full Dataset w patients that have more than 1 visit and NDC codes"
 
-    sota = "State of the art dataset used by GameNet/SafeDrug"
+    sota = "State of the art dataset used by GameNet/SafeDrug with the fixed ehr_ad"
+    old_sota = "State of the art dataset used by GameNet/SafeDrug"
 
     experiment = "Experimental dataset type"

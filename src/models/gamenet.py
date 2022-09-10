@@ -16,17 +16,21 @@ class Model(nn.Module):
         self.device = device
         self.embeddings = nn.ModuleList(
             [nn.Embedding(vocab_size[i], emb_dim) for i in range(K-1)])
-        self.dropout = nn.Dropout(p=0.5)
+        self.dropout = nn.Dropout(p=0.4)
 
-        self.encoders = nn.ModuleList([nn.GRU(emb_dim, emb_dim * 2, batch_first=True) for _ in range(K-1)])
+        self.encoders = nn.ModuleList([nn.GRU(
+                emb_dim, emb_dim * 2, 
+                batch_first=True) for _ in range(K-1)])
 
         self.query = nn.Sequential(
             nn.ReLU(),
             nn.Linear(emb_dim * 4, emb_dim),
         )
 
-        self.ehr_gcn = GCN(voc_size=vocab_size[2], emb_dim=emb_dim, adj=ehr_adj, device=device)
-        self.inter = nn.Parameter(torch.FloatTensor(1))
+        self.ehr_gcn = GCN(voc_size=vocab_size[2],
+                emb_dim=emb_dim, adj=ehr_adj, device=device)
+
+        self.inter = Parameter(torch.FloatTensor(1))
 
         self.output = nn.Sequential(
             nn.ReLU(),
@@ -51,16 +55,21 @@ class Model(nn.Module):
                         .unsqueeze(dim=0)
                         .to(self.device)))) # (1,1,dim)
 
-            i2 = mean_embedding(self.dropout(self.embeddings[1](torch.LongTensor(adm[1]).unsqueeze(dim=0).to(self.device))))
+            i2 = mean_embedding(self.dropout(
+                    self.embeddings[1](torch.LongTensor(adm[1])
+                        .unsqueeze(dim=0)
+                        .to(self.device))))
+
             i1_seq.append(i1)
             i2_seq.append(i2)
+
         i1_seq = torch.cat(i1_seq, dim=1) #(1,seq,dim)
         i2_seq = torch.cat(i2_seq, dim=1) #(1,seq,dim)
 
-        o1, h1 = self.encoders[0](
+        o1, _ = self.encoders[0](
             i1_seq
         ) # o1:(1, seq, dim*2) hi:(1,1,dim*2)
-        o2, h2 = self.encoders[1](
+        o2, _ = self.encoders[1](
             i2_seq
         )
         patient_representations = torch.cat([o1, o2], dim=-1).squeeze(dim=0) # (seq, dim*4)
@@ -74,7 +83,6 @@ class Model(nn.Module):
 
         if len(input) > 1:
             history_keys = queries[:(queries.size(0)-1)] # (seq-1, dim)
-
             history_values = np.zeros((len(input)-1, self.vocab_size[2]))
             for idx, adm in enumerate(input):
                 if idx == len(input)-1:

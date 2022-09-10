@@ -4,10 +4,6 @@ from sklearn.metrics import jaccard_score, roc_auc_score, precision_score, f1_sc
 
 from src.utils.constants.dataset_types import Dataset_Type
 
-def llprint(message):
-    sys.stdout.write(message)
-    sys.stdout.flush()
-
 def get_list_dimension(myList):
 
     x = len(myList)
@@ -79,7 +75,7 @@ def multi_label_metric(y_gt, y_pred, y_prob):
                 score.append(2*average_prc[idx]*average_recall[idx] / (average_prc[idx] + average_recall[idx]))
         return score
 
-    def f1(y_gt, y_pred):
+    def macro_f1(y_gt, y_pred):
         all_micro = []
         for b in range(y_gt.shape[0]):
             all_micro.append(f1_score(y_gt[b], y_pred[b], average='macro'))
@@ -99,36 +95,84 @@ def multi_label_metric(y_gt, y_pred, y_prob):
 
     def precision_at_k(y_gt, y_prob, k=3):
         precision = 0
+
+        # First we get a list that represents the
+        # medicine ids from lowest prob to highest prob
+
+        # x = np.argsort(y_prob, axis=-1)
+
+        # We then reverse the order since we want the
+        # medicine with highest probability first
+        # x = x[:, ::-1]
+
+        # Then we get the Top K of each guess
+        # x = x[:, :k]
+
         sort_index = np.argsort(y_prob, axis=-1)[:, ::-1][:, :k]
+
+        # In the loop we are checking if the items in the
+        # sorted list are marked as 1 in the y_gt (ground truth)
+
         for i in range(len(y_gt)):
             TP = 0
             for j in range(len(sort_index[i])):
                 if y_gt[i, sort_index[i, j]] == 1:
                     TP += 1
             precision += TP / len(sort_index[i])
+
         return precision / len(y_gt)
 
-    # roc_auc
+    # ------------- START ---------------
+
+    # Precision at K
+    p_1 = precision_at_k(y_gt, y_prob, k=1)
+    p_5 = precision_at_k(y_gt, y_prob, k=5)
+    p_10 = precision_at_k(y_gt, y_prob, k=10)
+    p_50 = precision_at_k(y_gt, y_prob, k=50)
+    p_100 = precision_at_k(y_gt, y_prob, k=100)
+
+    # Averagre Precision
+    avg_prc = average_prc(y_gt, y_pred)
+
+    # Roc Auc
     try:
         auc = roc_auc(y_gt, y_prob)
     except:
         auc = 0
-    # precision
-    p_1 = precision_at_k(y_gt, y_prob, k=1)
-    p_3 = precision_at_k(y_gt, y_prob, k=3)
-    p_5 = precision_at_k(y_gt, y_prob, k=5)
-    # macro f1
-    f1 = f1(y_gt, y_pred)
-    # precision
-    prauc = precision_auc(y_gt, y_prob)
-    # jaccard
-    ja = jaccard(y_gt, y_pred)
-    # pre, recall, f1
-    avg_prc = average_prc(y_gt, y_pred)
+
+    # Recall
     avg_recall = average_recall(y_gt, y_pred)
+
+    # macro f1
+    macro_f1 = macro_f1(y_gt, y_pred)
     avg_f1 = average_f1(avg_prc, avg_recall)
 
+    # precision-recall Curve
+    prauc = precision_auc(y_gt, y_prob)
+
+    # Jaccard
+    ja = jaccard(y_gt, y_pred)
+
+    # Jaccard
+
     return ja, prauc, np.mean(avg_prc), np.mean(avg_recall), np.mean(avg_f1)
+
+def llprint(message):
+    sys.stdout.write(message)
+    sys.stdout.flush()
+
+
+def get_n_params(model):
+    pp=0
+    for p in list(model.parameters()):
+        nn=1
+        for s in list(p.size()):
+            nn = nn*s
+        pp += nn
+    return pp
+
+def get_rec_medicine(y_pred):
+    return list(np.where(y_pred == 1)[0])
 
 def is1V(dataset_type):
     return (dataset_type == Dataset_Type.full1VATC4 or 
@@ -159,6 +203,10 @@ def isNDC(dataset_type):
 def isAge(dataset_type):
     return (dataset_type == Dataset_Type.full3Age or
              dataset_type == Dataset_Type.full4Age)
+
+def isSota(dataset_type):
+    return (dataset_type == Dataset_Type.sota or
+             dataset_type == Dataset_Type.old_sota)
 
 def isByDate(dataset_type):
     return (dataset_type == Dataset_Type.realistic4)

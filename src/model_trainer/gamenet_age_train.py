@@ -13,31 +13,34 @@ from src.utils.tools import llprint
 from src.utils.tools import get_n_params
 import os
 
+def use_wandb(wandb_name):
+    if wandb_name != None:
+        wandb.init(project=wandb_name, entity="liam_dratta")
+        wandb.config = {
+          "learning_rate": 0.0001,
+          "epochs": 50,
+          "batch_size": 1
+        }
+
 def load_data(dataset):
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     diag_voc = dataset.voc[0]['diag_voc']
     pro_voc = dataset.voc[0]['pro_voc']
     med_voc = dataset.voc[0]['med_voc']
     age_voc = dataset.voc[0]['age_voc']
 
     voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word) )
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return voc_size, device
 
 
-def train(dataset, dataset_type, model_type):
+def train(dataset, dataset_type, model_type, wandb_name):
 
-    wandb.init(project="GameNet Model", entity="liam_dratta")
-    wandb.config = {
-     "learning_rate": 0.0001,
-     "epochs": 50,
-     "batch_size": 1
-    }
+    use_wandb(wandb_name)
 
-    split_point = int(len(dataset.data[0]) * 2 / 3)
-    eval_len = int(len(dataset.data[0][split_point:]) / 2)
-    data_train = dataset.data[0][:split_point]
-    data_eval = dataset.data[0][split_point+eval_len:]
+    data_train = dataset.data[0][0]
+    data_eval = dataset.data[0][1]
 
     voc_size, device = load_data(dataset)
 
@@ -50,6 +53,7 @@ def train(dataset, dataset_type, model_type):
 
     history = defaultdict(list)
     best_epoch, best_ja = 0, 0
+    tic2 = 0
 
     EPOCH = 50
     for epoch in range(EPOCH):
@@ -97,22 +101,25 @@ def train(dataset, dataset_type, model_type):
         history['prauc'].append(prauc)
         history['med'].append(avg_med)
 
-        wandb.log({
-            "Epoch": epoch,
-            "Loss": np.mean(loss_array),
-            "Testing Jaccard": ja,
-            "Testing f1": avg_f1,
-            "Testing recall": avg_r,
-            "Testing accuracy": prauc,
-            "Testing average medications": avg_med,
-            "Testing precision": avg_p,
-            "Training Jaccard": train_ja,
-            "Training f1": train_avg_f1,
-            "Training recall": train_avg_r,
-            "Training accuracy": train_prauc,
-            "Training average medications": train_avg_med,
-            "Training precision": train_avg_p
-            })
+        if wandb_name != None:
+            wandb.log({
+                "Epoch": epoch,
+                "Loss": np.mean(loss_array),
+                "Testing Jaccard": ja,
+                "Testing f1": avg_f1,
+                "Testing recall": avg_r,
+                "Testing accuracy": prauc,
+                "Testing average medications": avg_med,
+                "Testing precision": avg_p,
+                "Training Jaccard": train_ja,
+                "Training f1": train_avg_f1,
+                "Training recall": train_avg_r,
+                "Training accuracy": train_prauc,
+                "Training average medications": train_avg_med,
+                "Training precision": train_avg_p
+                })
+
+            wandb.watch(model)
 
         if epoch >= 5:
             print ('Med: {}, Ja: {}, F1: {}, PRAUC: {}'.format(
@@ -121,9 +128,6 @@ def train(dataset, dataset_type, model_type):
                 np.mean(history['avg_f1'][-5:]),
                 np.mean(history['prauc'][-5:])
                 ))
-
-
-        wandb.watch(model)
 
         dir = 'saved_models/' + model_type.name + '/'+ dataset_type.name 
         path = dir + '/' +  'Epoch_{}_JA_{:.4}.model'.format(epoch, ja)
@@ -141,7 +145,6 @@ def train(dataset, dataset_type, model_type):
 
     with open('history.pkl', 'wb') as handle:
         pickle.dump(history, handle)
-
 
 
 def eval(model, data_eval, voc_size):
@@ -201,9 +204,7 @@ def eval(model, data_eval, voc_size):
 
 def test(model_path, dataset):
 
-    split_point = int(len(dataset.data[0]) * 2 / 3)
-    eval_len = int(len(dataset.data[0][split_point:]) / 2)
-    data_test = dataset.data[0][split_point:split_point + eval_len]
+    data_test = dataset.data[0][1]
 
     voc_size, device = load_data(dataset)
     model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)

@@ -6,13 +6,16 @@ import src.model_trainer.start as train
 
 def main():
 
-    dataset_type = Dataset_Type.sota
+    # wandb_name = "GameNet Model"
+    wandb_name = None
+
+    dataset_type = Dataset_Type.old_sota
     model_type = Model_Type.game_net
 
     dataset = load_data.start(dataset_type)
-    train.start(model_type, dataset, dataset_type)
+    #train.start(model_type, dataset, dataset_type, wandb_name)
 
-    #train.test('saved_models/saved_models/game_net_age/full3Age/Epoch_49_JA_0.5548.model', dataset)
+    train.test('saved_models/saved_models/game_net/sota/Epoch_49_JA_0.5178.model', dataset, model_type)
 
 if __name__ == "__main__":
     main()
