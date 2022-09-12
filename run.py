@@ -8,10 +8,10 @@ import src.model_trainer.start as train
 def main():
 
     # wandb_name = "GameNet Model"
-    wandb_name = "Comparing sota"
+    wandb_name = "new-dataset-split"
 
-    dataset_type = Dataset_Type.old_sota
-    model_type = Model_Type.game_net
+    dataset_type = Dataset_Type.full3Age
+    model_type = Model_Type.game_net_age
 
     dataset = load_data.start(dataset_type)
     train.start(model_type, dataset, dataset_type, wandb_name)

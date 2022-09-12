@@ -1,11 +1,16 @@
 import src.model_trainer.gamenet_age_train as gamenet_age_train
 import src.model_trainer.gamenet_train as gamenet_train
+import src.model_trainer.gamenet_realistic_train as gamenet_realistic_train
 from src.utils.constants.model_types import Model_Type
+from src.utils.constants.dataset_types import Dataset_Type
 
 def start(model_type, dataset, dataset_type, wandb):
 
+    if dataset_type == Dataset_Type.realistic4:
+        gamenet_realistic_train.train(dataset, dataset_type, model_type, wandb)
     if model_type == Model_Type.game_net_age:
-        gamenet_age_train.train(dataset, dataset_type, model_type, wandb)
+        #gamenet_age_train.train(dataset, dataset_type, model_type, wandb)
+        gamenet_train.train(dataset, dataset_type, model_type, wandb, with_age=True)
     else:
         gamenet_train.train(dataset, dataset_type, model_type, wandb)
 
