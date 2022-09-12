@@ -29,7 +29,7 @@ def start(dataset_type):
 
         if dataset_type == Dataset_Type.sota:
             data_builder.build_sota_dataset()
-        elif dataset_type == Dataset_Type.realistic4:
+        elif dataset_type == tools.isByDate(dataset_type):
             data_builder.build_realistic_dataset(db, dataset_type)
         else:
             data_builder.build_dataset(db, dataset_type)

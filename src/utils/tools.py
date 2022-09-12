@@ -174,7 +174,6 @@ def llprint(message):
     sys.stdout.flush()
 
 
-
 def get_rec_medicine(y_pred):
     return list(np.where(y_pred == 1)[0])
 
@@ -192,12 +191,14 @@ def isATC3(dataset_type):
     return (dataset_type == Dataset_Type.fullATC3 or 
                 dataset_type == Dataset_Type.full1VATC3 or
                     dataset_type == Dataset_Type.fullM1VATC3 or 
-                    dataset_type == Dataset_Type.full3Age)
+                        dataset_type == Dataset_Type.full3Age or
+                            dataset_type == Dataset_Type.realistic3)
 
 def isATC4(dataset_type):
     return (dataset_type == Dataset_Type.fullATC4 or 
                 dataset_type == Dataset_Type.full1VATC4 or
-                    dataset_type == Dataset_Type.fullM1VATC4)
+                    dataset_type == Dataset_Type.fullM1VATC4 or
+                    dataset_type == Dataset_Type.realistic4)
 
 def isNDC(dataset_type):
     return (dataset_type == Dataset_Type.fullNDC or 
@@ -213,4 +214,5 @@ def isSota(dataset_type):
              dataset_type == Dataset_Type.old_sota)
 
 def isByDate(dataset_type):
-    return (dataset_type == Dataset_Type.realistic4)
+    return (dataset_type == Dataset_Type.realistic4 or 
+                dataset_type == Dataset_Type.realistic3)

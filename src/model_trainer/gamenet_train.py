@@ -18,9 +18,9 @@ import os
 torch.manual_seed(1203)
 np.random.seed(1203)
 
-def use_wandb(wandb_name):
+def use_wandb(wandb_name,config):
     if wandb_name != None:
-        wandb.init(project=wandb_name, entity="liam_dratta")
+        wandb.init(project=wandb_name, entity="liam_dratta", config=config)
 
 def wandb_config(wandb_name, parameters):
     if wandb_name != None:
@@ -29,6 +29,7 @@ def wandb_config(wandb_name, parameters):
           "epochs": 50,
           "parameters":parameters
         }
+        return wandb.config
 
 def load_data(dataset, with_age):
     diag_voc = dataset.voc[0]['diag_voc']
@@ -47,8 +48,6 @@ def load_data(dataset, with_age):
 
 def train(dataset, dataset_type, model_type, wandb_name, with_age=False):
 
-    use_wandb(wandb_name)
-
     voc_size, device = load_data(dataset, with_age)
 
     data_train = dataset.data[0][0]
@@ -62,7 +61,8 @@ def train(dataset, dataset_type, model_type, wandb_name, with_age=False):
     model.to(device=device)
     parameters = get_n_params(model)
     print('parameters', parameters)
-    wandb_config(wandb_name, parameters)
+    config = wandb_config(wandb_name, parameters)
+    use_wandb(wandb_name, config)
 
     optimizer = Adam(list(model.parameters()), lr=0.0002)
 
