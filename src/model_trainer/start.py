@@ -6,7 +6,7 @@ import src.utils.tools as tools
 
 def start(model_type, dataset, dataset_type, wandb):
 
-    if dataset_type == tools.isByDate(dataset_type):
+    if tools.isByDate(dataset_type):
         if model_type == Model_Type.game_net:
             gamenet_realistic_train.train(dataset, dataset_type, model_type, wandb)
         if model_type == Model_Type.game_net_age:

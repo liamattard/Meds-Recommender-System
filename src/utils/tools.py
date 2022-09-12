@@ -207,7 +207,9 @@ def isNDC(dataset_type):
 
 def isAge(dataset_type):
     return (dataset_type == Dataset_Type.full3Age or
-             dataset_type == Dataset_Type.full4Age)
+             dataset_type == Dataset_Type.full4Age or
+             dataset_type == Dataset_Type.realistic3 or
+             dataset_type == dataset_type.realistic4)
 
 def isSota(dataset_type):
     return (dataset_type == Dataset_Type.sota or
