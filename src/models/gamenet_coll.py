@@ -60,7 +60,6 @@ class Model(nn.Module):
                         .unsqueeze(dim=0)
                         .to(self.device)))) # (1,1,dim)
 
-            breakpoint()
             i2 = mean_embedding(self.dropout(
                     self.embeddings[1](torch.LongTensor(adm[1])
                         .unsqueeze(dim=0)
@@ -231,6 +230,5 @@ class Collaborative_Filtering (nn.Module):
         matrix_fact = torch.matmul(user_embeddings,med_embeddings.weight.T)
         output = self.output(matrix_fact)
 
-        breakpoint()
         return output
 

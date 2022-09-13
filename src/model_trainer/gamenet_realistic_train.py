@@ -102,7 +102,6 @@ def train(dataset, dataset_type, model_type, wandb_name):
             elif tools.isCollFil(model_type):
                 patient_id = input[4]
                 target_output1, _ = model(seq_input, patient_id)
-                breakpoint()
             else:
                 target_output1, _ = model(seq_input)
 
