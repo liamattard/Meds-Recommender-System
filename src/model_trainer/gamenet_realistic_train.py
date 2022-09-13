@@ -211,13 +211,14 @@ def eval(model, data_eval, voc_size, model_type):
         if input[5] != []:
             seq_input = input[5] + seq_input
 
-        if tools.isAge(model_type):
-            age = input[3]
-
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
         if tools.isAge(model_type) and age != None:
+            age = input[3]
             target_output = model(seq_input, age)
+        elif tools.isCollFil(model_type):
+            patient_id = input[4]
+            target_output = model(seq_input, patient_id)
         else:
             target_output = model(seq_input)
 
