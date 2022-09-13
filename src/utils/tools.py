@@ -4,6 +4,7 @@ from sklearn.metrics import jaccard_score, roc_auc_score, precision_score, f1_sc
 
 from src.utils.constants.dataset_types import Dataset_Type
 from src.utils.classes.results import Results
+from src.utils.constants.model_types import Model_Type
 
 def get_list_dimension(myList):
 
@@ -205,11 +206,15 @@ def isNDC(dataset_type):
                 dataset_type == Dataset_Type.full1VNDC or
                     dataset_type == Dataset_Type.fullM1VNDC)
 
-def isAge(dataset_type):
-    return (dataset_type == Dataset_Type.full3Age or
-             dataset_type == Dataset_Type.full4Age or
-             dataset_type == Dataset_Type.realistic3 or
-             dataset_type == dataset_type.realistic4)
+def isAge(dataset_model_type):
+    return (dataset_model_type == Dataset_Type.full3Age or
+             dataset_model_type == Dataset_Type.full4Age or
+             dataset_model_type == Dataset_Type.realistic3 or
+             dataset_model_type == Dataset_Type.realistic4 or 
+             dataset_model_type == Model_Type.game_net_age)
+
+def isCollFil(dataset_model_type):
+    return (dataset_model_type == Model_Type.game_net_coll)
 
 def isSota(dataset_type):
     return (dataset_type == Dataset_Type.sota or

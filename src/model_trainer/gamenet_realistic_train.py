@@ -4,15 +4,18 @@ import wandb
 import numpy as np
 import src.models.gamenet as gamenet
 import src.models.gamenet_age as gamenet_age
+import src.models.gamenet_coll as gamenet_coll
 import torch.nn.functional as F
 
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.optim import Adam
+from torch.optim import SGD
 from src.utils.classes.results import Results
 from src.utils.tools import multi_label_metric
 from src.utils.tools import llprint
 from src.utils.tools import get_n_params 
 from src.utils.tools import get_rec_medicine 
+import src.utils.tools as tools
 import os
 
 torch.manual_seed(1203)
@@ -31,14 +34,17 @@ def wandb_config(wandb_name, parameters):
         }
         return wandb.config
 
-def load_data(dataset, with_age):
+def load_data(dataset, model_type):
     diag_voc = dataset.voc[0]['diag_voc']
     pro_voc = dataset.voc[0]['pro_voc']
     med_voc = dataset.voc[0]['med_voc']
 
-    if with_age:
+    if tools.isAge(model_type):
         age_voc = dataset.voc[0]['age_voc']
         voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word))
+    elif tools.isCollFil(model_type):
+        patient_voc = dataset.voc[0]['patient_voc']
+        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(patient_voc.idx2word), len(med_voc.idx2word))
     else:
         voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(med_voc.idx2word))
 
@@ -46,16 +52,18 @@ def load_data(dataset, with_age):
 
     return voc_size, device
 
-def train(dataset, dataset_type, model_type, wandb_name, with_age=False):
+def train(dataset, dataset_type, model_type, wandb_name):
 
 
-    voc_size, device = load_data(dataset, with_age)
+    voc_size, device = load_data(dataset, model_type)
 
     data_train = dataset.data[0][0]
     data_eval = dataset.data[0][1]
 
-    if with_age:
+    if tools.isAge(model_type):
         model = gamenet_age.Model(voc_size, dataset.ehr_adj[0], device)
+    elif tools.isCollFil(model_type):
+        model = gamenet_coll.Model(voc_size, dataset.ehr_adj[0], device)
     else:
         model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
 
@@ -88,11 +96,13 @@ def train(dataset, dataset_type, model_type, wandb_name, with_age=False):
             if input[5] != []:
                 seq_input = input[5] + seq_input
 
-            if with_age:
+            if tools.isAge(model_type):
                 age = input[3]
-
-            if with_age and age != None:
                 target_output1, _ = model(seq_input, age)
+            elif tools.isCollFil(model_type):
+                patient_id = input[4]
+                target_output1, _ = model(seq_input, patient_id)
+                breakpoint()
             else:
                 target_output1, _ = model(seq_input)
 
@@ -126,7 +136,7 @@ def train(dataset, dataset_type, model_type, wandb_name, with_age=False):
         print ('training time: {}, test time: {}'.format(time.time() - tic,
             time.time() - tic2))
 
-        eval_full_epoch(model, data_train, data_eval, voc_size, with_age, wandb_name, (epoch + 1), loss_array)
+        eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_name, (epoch + 1), loss_array)
 
 
         dir = 'saved_models/' + model_type.name + '/'+ dataset_type.name 
@@ -137,11 +147,11 @@ def train(dataset, dataset_type, model_type, wandb_name, with_age=False):
 
         torch.save(model.state_dict(), open(path, 'wb'))
 
-def eval_full_epoch(model, data_train, data_eval, voc_size, with_age, wandb_name, epoch, loss_array):
+def eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_name, epoch, loss_array):
 
-    test_results = eval(model, data_eval, voc_size, with_age)
+    test_results = eval(model, data_eval, voc_size, model_type)
 
-    train_results =  eval(model, data_train, voc_size, with_age)
+    train_results =  eval(model, data_train, voc_size, model_type)
 
     metrics_dic = {
             "Epoch": epoch,
@@ -182,7 +192,7 @@ def eval_full_epoch(model, data_train, data_eval, voc_size, with_age, wandb_name
         wandb.log(metrics_dic)
         wandb.watch(model)
 
-def eval(model, data_eval, voc_size, with_age):
+def eval(model, data_eval, voc_size, model_type):
     model.eval()
 
     smm_record = []
@@ -201,12 +211,12 @@ def eval(model, data_eval, voc_size, with_age):
         if input[5] != []:
             seq_input = input[5] + seq_input
 
-        if with_age:
+        if tools.isAge(model_type):
             age = input[3]
 
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
-        if with_age and age != None:
+        if tools.isAge(model_type) and age != None:
             target_output = model(seq_input, age)
         else:
             target_output = model(seq_input)

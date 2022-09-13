@@ -6,8 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from torchnlp.encoders import LabelEncoder
-
 class Model(nn.Module):
     def __init__(self, vocab_size, ehr_adj, device, emb_dim=64):
         super(Model, self).__init__()
@@ -35,7 +33,7 @@ class Model(nn.Module):
 
         self.output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(emb_dim * 3, emb_dim * 2),
+            nn.Linear(emb_dim * 4, emb_dim * 2),
             nn.ReLU(),
             nn.Linear(emb_dim * 2, vocab_size[2])
         )
@@ -44,13 +42,17 @@ class Model(nn.Module):
 
         self.init_weights()
 
-    def forward(self, input):
+    def forward(self, input, patient_id):
+
+        '''Reading from Collaborative_Filtering Model'''
+        fact3 = self.collab_filter(patient_id)
 
         # generate medical embeddings and queries
         i1_seq = []
         i2_seq = []
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
+
         for adm in input:
 
             i1 = mean_embedding(self.dropout(
@@ -58,6 +60,7 @@ class Model(nn.Module):
                         .unsqueeze(dim=0)
                         .to(self.device)))) # (1,1,dim)
 
+            breakpoint()
             i2 = mean_embedding(self.dropout(
                     self.embeddings[1](torch.LongTensor(adm[1])
                         .unsqueeze(dim=0)
@@ -82,6 +85,10 @@ class Model(nn.Module):
         '''I:generate current input'''
         query = queries[-1:] # (1,dim)
 
+        #ignore
+        history_values = torch.tensor([0])
+        history_keys= torch.tensor([0])
+
         drug_memory = self.ehr_gcn()
 
         if len(input) > 1:
@@ -99,13 +106,15 @@ class Model(nn.Module):
 
         if len(input) > 1:
             visit_weight = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
-            x_temp = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
             weighted_values = visit_weight.mm(history_values) # (1, size)
             fact2 = torch.mm(weighted_values, drug_memory) # (1, dim)
         else:
             fact2 = fact1
         '''R:convert O and predict'''
-        output = self.output(torch.cat([query, fact1, fact2], dim=-1)) # (1, dim)
+
+
+
+        output = self.output(torch.cat([query, fact1, fact2, fact3], dim=-1)) # (1, dim)
 
         if self.training:
             neg_pred_prob = torch.sigmoid(output)
@@ -197,25 +206,31 @@ class GraphConvolution(nn.Module):
 
 
 class Collaborative_Filtering (nn.Module):
-    def __init__(self, voc_size, embedding_size, device):
+    def __init__(self, voc_size, emb_dim, device):
         super().__init__()
 
         self.device = device
 
         self.user_embeddings = nn.Embedding(voc_size[-2],
-                                       embedding_size, max_norm=1)
+                                       emb_dim, max_norm=1)
 
         self.med_embeddings = nn.Embedding(voc_size[-1],
-                                       embedding_size, max_norm=1)
+                                       emb_dim, max_norm=1)
+
+        self.output = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(voc_size[-1], emb_dim * 2),
+            nn.ReLU(),
+            nn.Linear(emb_dim * 2, emb_dim)
+        )
 
     def forward(self, user_id):
-        user_embeddings = self.user_embeddings(torch.LongTensor(user_id).to(self.device))
-        med_embeddings = self.med_embeddings()
+        user_embeddings = self.user_embeddings(torch.LongTensor([user_id]).to(self.device))
+        med_embeddings = self.med_embeddings
 
-        #reduced = self.output(mult.T)
-        #return torch.swapaxes(reduced,1,0)
-        breakpoint()
-        output = torch.matmul(user_embeddings,med_embeddings.weight.T)
+        matrix_fact = torch.matmul(user_embeddings,med_embeddings.weight.T)
+        output = self.output(matrix_fact)
+
         breakpoint()
         return output
 

@@ -6,10 +6,11 @@ import src.model_trainer.start as train
 
 def main():
 
-    wandb_name = "realistic-dataset"
+    #wandb_name = "realistic-dataset"
+    wandb_name = None
 
     dataset_type = Dataset_Type.realistic3
-    model_type = Model_Type.game_net
+    model_type = Model_Type.game_net_coll
 
     dataset = load_data.start(dataset_type)
     train.start(model_type, dataset, dataset_type, wandb_name)

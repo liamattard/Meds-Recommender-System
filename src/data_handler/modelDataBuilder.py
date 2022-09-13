@@ -113,10 +113,10 @@ def build_dataset(db, dataset_type):
     visit_diagnoses_map = query_handler.load_visit_diagnoses(db)
     visit_procedures_map = query_handler.load_visit_procedures(db)
     _, user_visit_map = query_handler.load_user_visit_map(db)
+
     visit_medicine_map = query_handler.load_visit_medicine(db, dataset_type)
     user_age_map = query_handler.load_user_age_map(db)
 
-    list_of_dates = []
     data = []
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc()}
 
@@ -146,7 +146,6 @@ def build_dataset(db, dataset_type):
                     visit_diagnoses_map, visit_procedures_map,
                     visit_medicine_map, voc)
             if visit_arr != []:
-                list_of_dates.append(visit)
                 patient_arr.append(visit_arr)
 
         if(isM1V):
