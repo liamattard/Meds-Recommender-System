@@ -26,7 +26,7 @@ class Model(nn.Module):
             nn.Linear(emb_dim * 4, emb_dim),
         )
 
-        self.ehr_gcn = GCN(voc_size=vocab_size[2],
+        self.ehr_gcn = GCN(voc_size=vocab_size[-1],
                 emb_dim=emb_dim, adj=ehr_adj, device=device)
 
         self.inter = Parameter(torch.FloatTensor(1))
@@ -35,7 +35,7 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Linear(emb_dim * 4, emb_dim * 2),
             nn.ReLU(),
-            nn.Linear(emb_dim * 2, vocab_size[2])
+            nn.Linear(emb_dim * 2, vocab_size[-1])
         )
 
         self.collab_filter = Collaborative_Filtering(vocab_size, emb_dim, device)
@@ -92,7 +92,7 @@ class Model(nn.Module):
 
         if len(input) > 1:
             history_keys = queries[:(queries.size(0)-1)] # (seq-1, dim)
-            history_values = np.zeros((len(input)-1, self.vocab_size[2]))
+            history_values = np.zeros((len(input)-1, self.vocab_size[-1]))
             for idx, adm in enumerate(input):
                 if idx == len(input)-1:
                     break
