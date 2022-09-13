@@ -78,7 +78,7 @@ def train(dataset, dataset_type, model_type, wandb_name):
     tic2 = 0
 
     # Evaluation before the model is trained
-    eval_full_epoch(model, data_train, data_eval, voc_size, with_age, wandb_name, 0, [])
+    eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_name, 0, [])
 
     EPOCH = 50
     for epoch in range(EPOCH):
