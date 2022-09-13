@@ -224,19 +224,11 @@ class Collaborative_Filtering (nn.Module):
         self.med_embeddings = nn.Embedding(voc_size[-1],
                                        emb_dim, max_norm=1)
 
-        self.output = nn.Sequential(
-            nn.ReLU(),
-            nn.Linear(voc_size[-1], emb_dim * 2),
-            nn.ReLU(),
-            nn.Linear(emb_dim * 2, emb_dim)
-        )
-
     def forward(self, user_id):
         user_embeddings = self.user_embeddings(torch.LongTensor([user_id]).to(self.device))
         med_embeddings = self.med_embeddings
 
         matrix_fact = torch.matmul(user_embeddings,med_embeddings.weight.T)
-        output = self.output(matrix_fact)
 
-        return output
+        return matrix_fact
 
