@@ -33,9 +33,14 @@ class Model(nn.Module):
 
         self.output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(emb_dim * 4, emb_dim * 2),
+            nn.Linear(emb_dim * 3, emb_dim * 2),
             nn.ReLU(),
             nn.Linear(emb_dim * 2, vocab_size[-1])
+        )
+
+        self.final_output = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(vocab_size[-1] * 2 , vocab_size[-1]),
         )
 
         self.collab_filter = Collaborative_Filtering(vocab_size, emb_dim, device)
@@ -44,8 +49,6 @@ class Model(nn.Module):
 
     def forward(self, input, patient_id):
 
-        '''Reading from Collaborative_Filtering Model'''
-        fact3 = self.collab_filter(patient_id)
 
         # generate medical embeddings and queries
         i1_seq = []
@@ -113,7 +116,12 @@ class Model(nn.Module):
 
 
 
-        output = self.output(torch.cat([query, fact1, fact2, fact3], dim=-1)) # (1, dim)
+        output_1 = self.output(torch.cat([query, fact1, fact2], dim=-1)) # (1, dim)
+
+        '''Reading from Collaborative_Filtering Model'''
+        output_2 = self.collab_filter(patient_id)
+
+        output = self.final_output(torch.cat([output_1, output_2], dim=-1)) # (1, dim)
 
         if self.training:
             neg_pred_prob = torch.sigmoid(output)
