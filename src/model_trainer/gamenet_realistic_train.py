@@ -5,6 +5,7 @@ import numpy as np
 import src.models.gamenet as gamenet
 import src.models.gamenet_age as gamenet_age
 import src.models.gamenet_coll as gamenet_coll
+import src.models.gamenet_item_coll as gamenet_item_coll
 import torch.nn.functional as F
 
 from sklearn.metrics.pairwise import cosine_similarity
@@ -64,6 +65,8 @@ def train(dataset, dataset_type, model_type, wandb_name):
         model = gamenet_age.Model(voc_size, dataset.ehr_adj[0], device)
     elif tools.isCollFil(model_type):
         model = gamenet_coll.Model(voc_size, dataset.ehr_adj[0], device)
+    elif tools.isItemCollFil(model_type):
+        model = gamenet_item_coll.Model(voc_size, dataset.ehr_adj[0], device)
     else:
         model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
 

@@ -213,6 +213,9 @@ def isAge(dataset_model_type):
              dataset_model_type == Dataset_Type.realistic4 or 
              dataset_model_type == Model_Type.game_net_age)
 
+def isItemCollFil(dataset_model_type):
+    return (dataset_model_type == Model_Type.game_net_item_coll)
+
 def isCollFil(dataset_model_type):
     return (dataset_model_type == Model_Type.game_net_coll)
 
