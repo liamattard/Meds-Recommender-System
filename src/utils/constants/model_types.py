@@ -6,6 +6,7 @@ class Model_Type(enum.Enum):
     game_net = "GameNet Model"
     game_net_coll = "GameNet w Collaborative Model"
     game_net_item_coll = "GameNet w Item based Collaborative Model"
+    game_net_age_item_coll = "GameNet w Item based Collaborative Model with age"
 
     #Deprecated
     pure_collaborative = "Pure Collaborative Model"

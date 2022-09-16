@@ -6,6 +6,7 @@ import src.models.gamenet as gamenet
 import src.models.gamenet_age as gamenet_age
 import src.models.gamenet_coll as gamenet_coll
 import src.models.gamenet_item_coll as gamenet_item_coll
+import src.models.gamenet_age_item_coll as gamenet_age_item_coll
 import torch.nn.functional as F
 
 from sklearn.metrics.pairwise import cosine_similarity
@@ -18,6 +19,8 @@ from src.utils.tools import get_n_params
 from src.utils.tools import get_rec_medicine 
 import src.utils.tools as tools
 import os
+
+from src.utils.constants.model_types import Model_Type
 
 torch.manual_seed(1203)
 np.random.seed(1203)
@@ -55,14 +58,15 @@ def load_data(dataset, model_type):
 
 def train(dataset, dataset_type, model_type, wandb_name):
 
-
     voc_size, device = load_data(dataset, model_type)
 
     data_train = dataset.data[0][0]
     data_eval = dataset.data[0][1]
 
-    if tools.isAge(model_type):
+    if model_type == Model_Type.game_net_age:
         model = gamenet_age.Model(voc_size, dataset.ehr_adj[0], device)
+    elif model_type == Model_Type.game_net_age_item_coll:
+        model = gamenet_age_item_coll.Model(voc_size, dataset.ehr_adj[0], device)
     elif tools.isCollFil(model_type):
         model = gamenet_coll.Model(voc_size, dataset.ehr_adj[0], device)
     elif tools.isItemCollFil(model_type):
@@ -213,6 +217,9 @@ def eval(model, data_eval, voc_size, model_type):
         if input[5] != []:
             seq_input = input[5] + seq_input
 
+        if tools.isAge(model_type):
+            age = input[3]
+
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
         if tools.isAge(model_type) and age != None:
@@ -234,8 +241,8 @@ def eval(model, data_eval, voc_size, model_type):
 
         # predioction med set
         y_pred_tmp = target_output.copy()
-        y_pred_tmp[y_pred_tmp>=0.7] = 1
-        y_pred_tmp[y_pred_tmp<0.7] = 0
+        y_pred_tmp[y_pred_tmp>=0.85] = 1
+        y_pred_tmp[y_pred_tmp<0.85] = 0
         y_pred.append(y_pred_tmp)
 
         # prediction label
