@@ -32,6 +32,10 @@ def build_realistic_dataset(db, dataset_type):
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc(), 'age_voc':
             Voc(), 'patient_voc': Voc()}
 
+    if tools.isNoPro(dataset_type):
+        voc['pro_voc'].idx2word[0] = 'empty'
+        voc['pro_voc'].word2idx['empty'] = 0
+
     splitpoint = int(len(visit_by_time) * 80/100)
     train = list(visit_by_time.keys())[0:splitpoint]
     test = list(visit_by_time.keys())[splitpoint:]
@@ -43,7 +47,7 @@ def build_realistic_dataset(db, dataset_type):
         for visit in visit_by_time[date]:
             visit_arr , voc = utils.get_visit_arr(visit, 
                     visit_diagnoses_map, visit_procedures_map,
-                    visit_medicine_map, voc)
+                    visit_medicine_map, voc, dataset_type)
 
             if len(visit_arr) > 0:
                 #Getting patient ID
@@ -63,7 +67,7 @@ def build_realistic_dataset(db, dataset_type):
                     for past_visit in past_visits[:current_visit_number]:
                         past_visit_arr, voc = utils.get_visit_arr(past_visit, 
                                 visit_diagnoses_map, visit_procedures_map,
-                                visit_medicine_map, voc)
+                                visit_medicine_map, voc, dataset_type)
 
                         if len(past_visit_arr) > 0:
                             past_visits_arr.append(past_visit_arr)
@@ -95,6 +99,11 @@ def build_realistic_dataset(db, dataset_type):
 
     # Saving files
     names = file_utils.file_names(dataset_type)
+
+    if tools.isNoPro(dataset_type):
+        total_keys = len(voc["pro_voc"].idx2word)
+        voc["pro_voc"].idx2word[total_keys] = 0
+        voc["pro_voc"].word2idx[0] = total_keys
 
     if not os.path.exists(names[3]):
         os.makedirs(names[3])
@@ -142,9 +151,9 @@ def build_dataset(db, dataset_type):
         patient_arr = []
 
         for visit in user_visit_map[patient]:
-            visit_arr, voc = utils.get_visit_arr(visit, 
+            visit_arr, voc= utils.get_visit_arr(visit, 
                     visit_diagnoses_map, visit_procedures_map,
-                    visit_medicine_map, voc)
+                    visit_medicine_map, voc, dataset_type)
             if visit_arr != []:
                 patient_arr.append(visit_arr)
 

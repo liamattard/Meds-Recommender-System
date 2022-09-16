@@ -193,7 +193,8 @@ def isATC3(dataset_type):
                 dataset_type == Dataset_Type.full1VATC3 or
                     dataset_type == Dataset_Type.fullM1VATC3 or 
                         dataset_type == Dataset_Type.full3Age or
-                            dataset_type == Dataset_Type.realistic3)
+                            dataset_type == Dataset_Type.realistic3 or 
+                            dataset_type == Dataset_Type.realisticNoPro3)
 
 def isATC4(dataset_type):
     return (dataset_type == Dataset_Type.fullATC4 or 
@@ -210,6 +211,7 @@ def isAge(dataset_model_type):
     return (dataset_model_type == Dataset_Type.full3Age or
              dataset_model_type == Dataset_Type.full4Age or
              dataset_model_type == Dataset_Type.realistic3 or
+             dataset_model_type == Dataset_Type.realisticNoPro3 or
              dataset_model_type == Dataset_Type.realistic4 or 
              dataset_model_type == Model_Type.game_net_age or 
              dataset_model_type == Model_Type.game_net_age_item_coll)
@@ -226,4 +228,8 @@ def isSota(dataset_type):
 
 def isByDate(dataset_type):
     return (dataset_type == Dataset_Type.realistic4 or 
-                dataset_type == Dataset_Type.realistic3)
+                dataset_type == Dataset_Type.realistic3 or
+                dataset_type == Dataset_Type.realisticNoPro3 )
+
+def isNoPro(dataset_type):
+    return (dataset_type == Dataset_Type.realisticNoPro3)

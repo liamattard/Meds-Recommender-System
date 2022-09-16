@@ -6,6 +6,8 @@ class Dataset_Type(enum.Enum):
     realistic4 = "Realistic Dataset with visit split ATC4"
     realistic3 = "Realistic Dataset with visit split ATC3"
 
+    realisticNoPro3 = "Realistic Dataset with visit split ATC3 and rows with empty procedures"
+
     full4Age = "Full Dataset with ATC4 codes and age"
     full3Age = "Full Dataset with ATC3 codes and age"
 

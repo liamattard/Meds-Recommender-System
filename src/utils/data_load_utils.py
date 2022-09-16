@@ -1,11 +1,12 @@
 import numpy as np
+import src.utils.tools as tools
 
-def get_visit_arr(visit, visit_diagnoses_map, visit_procedures_map, visit_medicine_map, voc):
+def get_visit_arr(visit, visit_diagnoses_map, visit_procedures_map, visit_medicine_map, voc, dataset_type):
         
         current_visit = []
         new_row = []
         containsNone = False
-
+        
         if visit in visit_diagnoses_map:
             diagnoses = list(visit_diagnoses_map[visit])
             current_visit.append(diagnoses)
@@ -16,7 +17,10 @@ def get_visit_arr(visit, visit_diagnoses_map, visit_procedures_map, visit_medici
             procedures = list(visit_procedures_map[visit])
             current_visit.append(procedures)
         else:
-            containsNone = True
+            if tools.isNoPro(dataset_type):
+                current_visit.append(['empty'])
+            else:
+                containsNone = True
 
         if visit in visit_medicine_map:
             medicine = list(visit_medicine_map[visit])

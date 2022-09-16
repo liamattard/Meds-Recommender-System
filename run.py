@@ -9,7 +9,7 @@ def main():
     #wandb_name = "realistic-dataset"
     wandb_name = None
 
-    dataset_type = Dataset_Type.realistic3
+    dataset_type = Dataset_Type.realisticNoPro3
     model_type = Model_Type.game_net_age_item_coll
 
     dataset = load_data.start(dataset_type)
