@@ -112,6 +112,33 @@ def load_user_visit_time(db):
 
     return visit_by_time
 
+def load_user_heartrate(db):
+    visit_query = open(queries_base_path + "getHeartRateVisits.sql").read()
+    visit_heartrate = db.query(visit_query)
+    visit_heartrate_dict = make_dict(visit_heartrate)
+
+    visit_heartrate_dict = {k: [int(min(v)),int(max(v))] for k, v in visit_heartrate_dict.items()}
+
+    #z = set()
+
+    #for i in visit_heartrate_dict.values():
+    #    for med in i:
+    #        z.add(med)
+
+    #greater_than_200 = 0
+    #less_than_50 = 0
+
+    #for i in visit_heartrate_dict.values():
+    #    for med in i:
+    #        if med >= 200:
+    #            greater_than_200 += 1
+
+    #for i in visit_heartrate_dict.values():
+    #    for med in i:
+    #        if med <= 50:
+    #            less_than_50 += 1
+
+    return visit_heartrate_dict
 
 def load_user_visit_map(db):
 

@@ -233,3 +233,7 @@ def isByDate(dataset_type):
 
 def isNoPro(dataset_type):
     return (dataset_type == Dataset_Type.realisticNoPro3)
+
+
+def isfinal(model_type):
+    return (model_type == Model_Type.final_model)

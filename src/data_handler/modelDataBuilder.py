@@ -19,6 +19,7 @@ log = logging.getLogger("Data loader")
 
 def build_realistic_dataset(db, dataset_type):
 
+    visit_heartrate = query_handler.load_user_heartrate(db)
     visit_diagnoses_map = query_handler.load_visit_diagnoses(db)
     visit_procedures_map = query_handler.load_visit_procedures(db)
     visit_user_map, user_visit_map = query_handler.load_user_visit_map(db)
@@ -30,11 +31,14 @@ def build_realistic_dataset(db, dataset_type):
     data_test = []
 
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc(), 'age_voc':
-            Voc(), 'patient_voc': Voc()}
+            Voc(), 'patient_voc': Voc(), 'heartrate_voc': Voc()}
 
     if tools.isNoPro(dataset_type):
         voc['pro_voc'].idx2word[0] = 'empty'
         voc['pro_voc'].word2idx['empty'] = 0
+
+    voc['heartrate_voc'].idx2word[0] = 'empty'
+    voc['heartrate_voc'].word2idx['empty'] = 0
 
     splitpoint = int(len(visit_by_time) * 80/100)
     train = list(visit_by_time.keys())[0:splitpoint]
@@ -58,6 +62,13 @@ def build_realistic_dataset(db, dataset_type):
                 user_age = user_age_map[patient_id]
                 voc["age_voc"] = utils.append(voc["age_voc"], user_age)
 
+                #Getting patient Heart Rate
+                heartrate = None
+                if visit in visit_heartrate:
+                    heartrate = visit_heartrate[visit]
+                    voc["heartrate_voc"] = utils.append(voc["heartrate_voc"], heartrate[0])
+                    voc["heartrate_voc"] = utils.append(voc["heartrate_voc"], heartrate[1])
+
                 past_visits = user_visit_map[patient_id]
                 past_visits_arr = []
 
@@ -74,6 +85,14 @@ def build_realistic_dataset(db, dataset_type):
 
                 visit_arr.append(voc["age_voc"].word2idx[user_age])
                 visit_arr.append(voc["patient_voc"].word2idx[patient_id])
+                
+                if heartrate != None:
+                    heartrate_min = voc["heartrate_voc"].word2idx[heartrate[0]]
+                    heartrate_max = voc["heartrate_voc"].word2idx[heartrate[1]]
+                    visit_arr.append([heartrate_min, heartrate_max])
+                else:
+                    visit_arr.append([0, 0])
+
                 visit_arr.append(past_visits_arr)
 
                 visits_arr.append(visit_arr)
@@ -127,7 +146,7 @@ def build_dataset(db, dataset_type):
     user_age_map = query_handler.load_user_age_map(db)
 
     data = []
-    voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc()}
+    voc = {}
 
     isAge = tools.isAge(dataset_type)
     is1V = tools.is1V(dataset_type)

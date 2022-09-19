@@ -1,3 +1,3 @@
-SELECT subject_id,hadm_id, drug
-    FROM mimiciii.prescriptions
+SELECT hadm_id, itemid
+    FROM mimiciii.labevents
     WHERE drug NOT LIKE ' '

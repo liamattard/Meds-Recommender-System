@@ -2,16 +2,18 @@ import torch
 import time
 import wandb
 import numpy as np
+import torch.nn.functional as F
+
+#Models
 import src.models.gamenet as gamenet
 import src.models.gamenet_age as gamenet_age
 import src.models.gamenet_coll as gamenet_coll
 import src.models.gamenet_item_coll as gamenet_item_coll
 import src.models.gamenet_age_item_coll as gamenet_age_item_coll
-import torch.nn.functional as F
+import src.models.final_model as final_model
 
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.optim import Adam
-from torch.optim import SGD
 from src.utils.classes.results import Results
 from src.utils.tools import multi_label_metric
 from src.utils.tools import llprint
@@ -43,7 +45,13 @@ def load_data(dataset, model_type):
     pro_voc = dataset.voc[0]['pro_voc']
     med_voc = dataset.voc[0]['med_voc']
 
-    if tools.isAge(model_type):
+    if tools.isfinal(model_type):
+        age_voc = dataset.voc[0]['age_voc']
+        hr_voc = dataset.voc[0]['heartrate_voc']
+        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word),
+                len(age_voc.idx2word), len(hr_voc.idx2word),
+                len(med_voc.idx2word))
+    elif tools.isAge(model_type):
         age_voc = dataset.voc[0]['age_voc']
         voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word))
     elif tools.isCollFil(model_type):
@@ -67,6 +75,8 @@ def train(dataset, dataset_type, model_type, wandb_name):
         model = gamenet_age.Model(voc_size, dataset.ehr_adj[0], device)
     elif model_type == Model_Type.game_net_age_item_coll:
         model = gamenet_age_item_coll.Model(voc_size, dataset.ehr_adj[0], device)
+    elif model_type == Model_Type.final_model:
+        model = final_model.Model(voc_size, dataset.ehr_adj[0], device)
     elif tools.isCollFil(model_type):
         model = gamenet_coll.Model(voc_size, dataset.ehr_adj[0], device)
     elif tools.isItemCollFil(model_type):
@@ -100,10 +110,14 @@ def train(dataset, dataset_type, model_type, wandb_name):
 
             current_visit = input[:3]
             seq_input =  [current_visit]
-            if input[5] != []:
-                seq_input = input[5] + seq_input
+            if input[-1] != []:
+                seq_input = input[-1] + seq_input
 
-            if tools.isAge(model_type):
+            if tools.isfinal(model_type):
+                age = input[3]
+                hr = input[5]
+                target_output1, _ = model(seq_input, age, hr)
+            elif tools.isAge(model_type):
                 age = input[3]
                 target_output1, _ = model(seq_input, age)
             elif tools.isCollFil(model_type):
@@ -205,7 +219,6 @@ def eval(model, data_eval, voc_size, model_type):
     ja, prauc, avg_p, avg_r, avg_f1 = [[] for _ in range(5)]
     macro_f1, roc_auc, p_1, p_5, p_10, p_20 = [[] for _ in range(6)]
     med_cnt, visit_cnt = 0, 0
-    age = None
 
     covered_medicine = set()
     patient_medicine_arr = np.zeros((len(data_eval), voc_size[-1]))
@@ -214,15 +227,16 @@ def eval(model, data_eval, voc_size, model_type):
 
         current_visit = input[:3]
         seq_input =  [current_visit]
-        if input[5] != []:
-            seq_input = input[5] + seq_input
-
-        if tools.isAge(model_type):
-            age = input[3]
+        if input[-1] != []:
+            seq_input = input[-1] + seq_input
 
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
-        if tools.isAge(model_type) and age != None:
+        if tools.isfinal(model_type):
+            age = input[3]
+            hr = input[5]
+            target_output = model(seq_input, age, hr)
+        elif tools.isAge(model_type):
             age = input[3]
             target_output = model(seq_input, age)
         elif tools.isCollFil(model_type):
