@@ -13,17 +13,24 @@ class Model(nn.Module):
         self.K = K
         self.vocab_size = vocab_size
         self.device = device
-        self.embeddings = nn.ModuleList(
-            [nn.Embedding(vocab_size[i], emb_dim) for i in range(K-1)])
+
+        self.diag_embeddings = nn.Embedding(vocab_size[0], emb_dim)
+        self.pro_embeddings = nn.Embedding(vocab_size[1], emb_dim)
+        self.age_embeddings = nn.Embedding(vocab_size[3], emb_dim)
+
+        self.patient_embeddings = nn.Embedding(vocab_size[2], emb_dim)
+        self.med_embeddings_1 = nn.Embedding(vocab_size[-1], emb_dim)
+        self.med_embeddings_2 = nn.Embedding(vocab_size[-1], emb_dim)
+
         self.dropout = nn.Dropout(p=0.4)
 
         self.encoders = nn.ModuleList([nn.GRU(
                 emb_dim, emb_dim * 2, 
-                batch_first=True) for _ in range(K-1)])
+                batch_first=True) for _ in range(4)])
 
         self.query = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(emb_dim * 4, emb_dim),
+            nn.Linear(emb_dim * 8, emb_dim),
         )
 
         self.ehr_gcn = GCN(voc_size=vocab_size[-1],
@@ -38,49 +45,93 @@ class Model(nn.Module):
             nn.Linear(emb_dim * 2, vocab_size[-1])
         )
 
-        self.final_output = nn.Sequential(
-            nn.ReLU(),
-            nn.Linear(vocab_size[-1] * 2 , vocab_size[-1]),
-        )
-
-        self.collab_filter = Collaborative_Filtering(vocab_size, emb_dim, device)
-
         self.init_weights()
 
-    def forward(self, input, patient_id):
+    def forward(self, input, age, patient_id):
+
+        '''Reading from Collaborative_Filtering Model'''
+        patient_embeddings = self.dropout(
+                            self.patient_embeddings(torch.LongTensor([patient_id])
+                                .to(self.device))) # (len(user_diagnoses) ,dim)
+
+        if self.training:
+            med_embeddings = self.dropout(
+                                self.med_embeddings_1(torch.LongTensor(input[-1][2])
+                                    .to(self.device))) # (len(user_diagnoses) ,dim)
+        else:
+            #TODO: DO THIS
+            med_embeddings = self.med_embeddings_1.weight.to(self.device)
 
 
-        # generate medical embeddings and queries
-        i1_seq = []
-        i2_seq = []
+        matrix_fact = torch.matmul(patient_embeddings,med_embeddings.T).to(self.device)  # (len(user_diagnoses) , len(medicine))
+        matrix_fact = torch.sigmoid(matrix_fact).to(self.device)
+        
+        is_true = matrix_fact >= 0.5
+        coll_fill = is_true.nonzero()
+        coll_fill = coll_fill[:,1]
+
+        '''Starting to generate Patient Representation'''
+        
+        diag_seq = []
+        pro_seq = []
+        age_seq = []
+        coll_seq = []
+
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
 
         for adm in input:
 
-            i1 = mean_embedding(self.dropout(
-                    self.embeddings[0](torch.LongTensor(adm[0])
+            # Diagnosis
+            diag_val = mean_embedding(self.dropout(
+                    self.diag_embeddings(torch.LongTensor(adm[0])
                         .unsqueeze(dim=0)
                         .to(self.device)))) # (1,1,dim)
 
-            i2 = mean_embedding(self.dropout(
-                    self.embeddings[1](torch.LongTensor(adm[1])
+            # Procedures
+            pro_val = mean_embedding(self.dropout(
+                    self.pro_embeddings(torch.LongTensor(adm[1])
                         .unsqueeze(dim=0)
                         .to(self.device))))
 
-            i1_seq.append(i1)
-            i2_seq.append(i2)
+            # Age
+            age_val = mean_embedding(self.dropout(
+                    self.age_embeddings(torch.LongTensor([age])
+                        .unsqueeze(dim=0)
+                        .to(self.device))))
 
-        i1_seq = torch.cat(i1_seq, dim=1) #(1,seq,dim)
-        i2_seq = torch.cat(i2_seq, dim=1) #(1,seq,dim)
+            # Collaborative Filtering Output 
+            coll_val = mean_embedding(self.dropout(
+                    self.med_embeddings_2(coll_fill)))
+
+
+            diag_seq.append(diag_val)
+            pro_seq.append(pro_val)
+            age_seq.append(age_val)
+            coll_seq.append(coll_val)
+
+        diag_seq = torch.cat(diag_seq, dim=1) #(1,seq,dim)
+        pro_seq = torch.cat(pro_seq, dim=1) #(1,seq,dim)
+        age_seq = torch.cat(age_seq, dim=1) #(1,seq,dim)
+        coll_seq = torch.cat(coll_seq, dim=1) #(1,seq,dim)
 
         o1, _ = self.encoders[0](
-            i1_seq
+            diag_seq
         ) # o1:(1, seq, dim*2) hi:(1,1,dim*2)
+
         o2, _ = self.encoders[1](
-            i2_seq
+            pro_seq
         )
-        patient_representations = torch.cat([o1, o2], dim=-1).squeeze(dim=0) # (seq, dim*4)
+
+        o3, _ = self.encoders[2](
+            age_seq
+        )
+
+        o4, _ = self.encoders[3](
+            age_seq
+        )
+
+        patient_representations = torch.cat([o1, o2, o3, o4], dim=-1).squeeze(dim=0) # (seq, dim*4)
         queries = self.query(patient_representations) # (seq, dim)
 
         # graph memory module
@@ -115,13 +166,8 @@ class Model(nn.Module):
         '''R:convert O and predict'''
 
 
+        output = self.output(torch.cat([query, fact1, fact2], dim=-1)) # (1, dim)
 
-        output_1 = self.output(torch.cat([query, fact1, fact2], dim=-1)) # (1, dim)
-
-        '''Reading from Collaborative_Filtering Model'''
-        output_2 = self.collab_filter(patient_id)
-
-        output = self.final_output(torch.cat([output_1, output_2], dim=-1)) # (1, dim)
 
         if self.training:
             neg_pred_prob = torch.sigmoid(output)
@@ -135,8 +181,17 @@ class Model(nn.Module):
     def init_weights(self):
         """Initialize weights."""
         initrange = 0.1
-        for item in self.embeddings:
-            item.weight.data.uniform_(-initrange, initrange)
+
+        self.diag_embeddings.weight.data.uniform_(-initrange, initrange)
+
+        self.pro_embeddings.weight.data.uniform_(-initrange, initrange)
+
+        self.med_embeddings_1.weight.data.uniform_(-initrange, initrange)
+
+        self.med_embeddings_2.weight.data.uniform_(-initrange, initrange)
+
+        self.patient_embeddings.weight.data.uniform_(-initrange, initrange)
+
 
         self.inter.data.uniform_(-initrange, initrange)
 
@@ -211,24 +266,4 @@ class GraphConvolution(nn.Module):
                + str(self.in_features) + ' -> ' \
                + str(self.out_features) + ')'
 
-
-class Collaborative_Filtering (nn.Module):
-    def __init__(self, voc_size, emb_dim, device):
-        super().__init__()
-
-        self.device = device
-
-        self.user_embeddings = nn.Embedding(voc_size[-2],
-                                       emb_dim, max_norm=1)
-
-        self.med_embeddings = nn.Embedding(voc_size[-1],
-                                       emb_dim, max_norm=1)
-
-    def forward(self, user_id):
-        user_embeddings = self.user_embeddings(torch.LongTensor([user_id]).to(self.device))
-        med_embeddings = self.med_embeddings
-
-        matrix_fact = torch.matmul(user_embeddings,med_embeddings.weight.T)
-
-        return matrix_fact
 

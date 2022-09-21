@@ -55,8 +55,10 @@ def load_data(dataset, model_type):
         age_voc = dataset.voc[0]['age_voc']
         voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word))
     elif tools.isCollFil(model_type):
+        age_voc = dataset.voc[0]['age_voc']
         patient_voc = dataset.voc[0]['patient_voc']
-        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(patient_voc.idx2word), len(med_voc.idx2word))
+
+        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(patient_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word))
     else:
         voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(med_voc.idx2word))
 
@@ -122,7 +124,8 @@ def train(dataset, dataset_type, model_type, wandb_name):
                 target_output1, _ = model(seq_input, age)
             elif tools.isCollFil(model_type):
                 patient_id = input[4]
-                target_output1, _ = model(seq_input, patient_id)
+                age = input[3]
+                target_output1, _ = model(seq_input, age, patient_id)
             else:
                 target_output1, _ = model(seq_input)
 
@@ -240,8 +243,9 @@ def eval(model, data_eval, voc_size, model_type):
             age = input[3]
             target_output = model(seq_input, age)
         elif tools.isCollFil(model_type):
+            age = input[3]
             patient_id = input[4]
-            target_output = model(seq_input, patient_id)
+            target_output = model(seq_input, age, patient_id)
         else:
             target_output = model(seq_input)
 

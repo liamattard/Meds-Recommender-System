@@ -49,13 +49,19 @@ def build_realistic_dataset(db, dataset_type):
     def get_visit(date, voc):
         visits_arr = []
         for visit in visit_by_time[date]:
+
+            patient_id = visit_user_map[visit]
+
+            if tools.isM1V(dataset_type):
+                if len(user_visit_map[patient_id]) < 2:
+                    continue
+
             visit_arr , voc = utils.get_visit_arr(visit, 
                     visit_diagnoses_map, visit_procedures_map,
                     visit_medicine_map, voc, dataset_type)
 
             if len(visit_arr) > 0:
                 #Getting patient ID
-                patient_id = visit_user_map[visit]
                 voc["patient_voc"] = utils.append(voc["patient_voc"], patient_id)
 
                 #Getting patient Age
