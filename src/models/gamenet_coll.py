@@ -19,8 +19,7 @@ class Model(nn.Module):
         self.age_embeddings = nn.Embedding(vocab_size[3], emb_dim)
 
         self.patient_embeddings = nn.Embedding(vocab_size[2], emb_dim)
-        self.med_embeddings_1 = nn.Embedding(vocab_size[-1], emb_dim)
-        self.med_embeddings_2 = nn.Embedding(vocab_size[-1], emb_dim)
+        self.med_embeddings = nn.Embedding(vocab_size[-1], emb_dim)
 
         self.dropout = nn.Dropout(p=0.4)
 
@@ -31,6 +30,13 @@ class Model(nn.Module):
         self.query = nn.Sequential(
             nn.ReLU(),
             nn.Linear(emb_dim * 8, emb_dim),
+        )
+
+        self.coll_output= nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(vocab_size[-1], emb_dim *2),
+            nn.ReLU(),
+            nn.Linear(emb_dim * 2, emb_dim) 
         )
 
         self.ehr_gcn = GCN(voc_size=vocab_size[-1],
@@ -54,21 +60,12 @@ class Model(nn.Module):
                             self.patient_embeddings(torch.LongTensor([patient_id])
                                 .to(self.device))) # (len(user_diagnoses) ,dim)
 
-        if self.training:
-            med_embeddings = self.dropout(
-                                self.med_embeddings_1(torch.LongTensor(input[-1][2])
-                                    .to(self.device))) # (len(user_diagnoses) ,dim)
-        else:
-            #TODO: DO THIS
-            med_embeddings = self.med_embeddings_1.weight.to(self.device)
+        med_embeddings = self.dropout(self.med_embeddings.weight.to(self.device))
 
 
-        matrix_fact = torch.matmul(patient_embeddings,med_embeddings.T).to(self.device)  # (len(user_diagnoses) , len(medicine))
-        matrix_fact = torch.sigmoid(matrix_fact).to(self.device)
-        
-        is_true = matrix_fact >= 0.5
-        coll_fill = is_true.nonzero()
-        coll_fill = coll_fill[:,1]
+        matrix_fact = torch.matmul(patient_embeddings,med_embeddings.T).to(self.device)  # (1 , len(medicine))
+        coll_output = self.coll_output(matrix_fact).unsqueeze(dim=0).to(self.device)
+
 
         '''Starting to generate Patient Representation'''
         
@@ -100,15 +97,10 @@ class Model(nn.Module):
                                              .unsqueeze(dim=0)
                                              .to(self.device))))
 
-            # Collaborative Filtering Output 
-            coll_val = mean_embedding(self.dropout(
-                    self.med_embeddings_2(coll_fill.unsqueeze(dim=0)
-                                                   .to(self.device))))
-
             diag_seq.append(diag_val)
             pro_seq.append(pro_val)
             age_seq.append(age_val)
-            coll_seq.append(coll_val)
+            coll_seq.append(coll_output)
 
         diag_seq = torch.cat(diag_seq, dim=1) #(1,seq,dim)
         pro_seq = torch.cat(pro_seq, dim=1) #(1,seq,dim)
@@ -186,9 +178,7 @@ class Model(nn.Module):
 
         self.pro_embeddings.weight.data.uniform_(-initrange, initrange)
 
-        self.med_embeddings_1.weight.data.uniform_(-initrange, initrange)
-
-        self.med_embeddings_2.weight.data.uniform_(-initrange, initrange)
+        self.med_embeddings.weight.data.uniform_(-initrange, initrange)
 
         self.patient_embeddings.weight.data.uniform_(-initrange, initrange)
 
