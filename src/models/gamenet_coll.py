@@ -85,25 +85,25 @@ class Model(nn.Module):
             # Diagnosis
             diag_val = mean_embedding(self.dropout(
                     self.diag_embeddings(torch.LongTensor(adm[0])
-                        .unsqueeze(dim=0)
-                        .to(self.device)))) # (1,1,dim)
+                                              .unsqueeze(dim=0)
+                                              .to(self.device)))) # (1,1,dim)
 
             # Procedures
             pro_val = mean_embedding(self.dropout(
                     self.pro_embeddings(torch.LongTensor(adm[1])
-                        .unsqueeze(dim=0)
-                        .to(self.device))))
+                                              .unsqueeze(dim=0)
+                                              .to(self.device))))
 
             # Age
             age_val = mean_embedding(self.dropout(
                     self.age_embeddings(torch.LongTensor([age])
-                        .unsqueeze(dim=0)
-                        .to(self.device))))
+                                             .unsqueeze(dim=0)
+                                             .to(self.device))))
 
             # Collaborative Filtering Output 
             coll_val = mean_embedding(self.dropout(
-                    self.med_embeddings_2(coll_fill)))
-
+                    self.med_embeddings_2(coll_fill.unsqueeze(dim=0)
+                                                   .to(self.device))))
 
             diag_seq.append(diag_val)
             pro_seq.append(pro_val)
@@ -128,7 +128,7 @@ class Model(nn.Module):
         )
 
         o4, _ = self.encoders[3](
-            age_seq
+            coll_seq
         )
 
         patient_representations = torch.cat([o1, o2, o3, o4], dim=-1).squeeze(dim=0) # (seq, dim*4)
