@@ -25,11 +25,11 @@ class Model(nn.Module):
 
         self.encoders = nn.ModuleList([nn.GRU(
                 emb_dim, emb_dim * 2, 
-                batch_first=True) for _ in range(4)])
+                batch_first=True) for _ in range(3)])
 
         self.query = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(emb_dim * 8, emb_dim),
+            nn.Linear(emb_dim * 6, emb_dim),
         )
 
         self.coll_output= nn.Sequential(
@@ -46,7 +46,7 @@ class Model(nn.Module):
 
         self.output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(emb_dim * 3, emb_dim * 2),
+            nn.Linear(emb_dim * 4, emb_dim * 2),
             nn.ReLU(),
             nn.Linear(emb_dim * 2, vocab_size[-1])
         )
@@ -64,15 +64,13 @@ class Model(nn.Module):
 
 
         matrix_fact = torch.matmul(patient_embeddings,med_embeddings.T).to(self.device)  # (1 , len(medicine))
-        coll_output = self.coll_output(matrix_fact).unsqueeze(dim=0).to(self.device)
-
+        coll_output = self.coll_output(matrix_fact).to(self.device)
 
         '''Starting to generate Patient Representation'''
         
         diag_seq = []
         pro_seq = []
         age_seq = []
-        coll_seq = []
 
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
@@ -100,12 +98,10 @@ class Model(nn.Module):
             diag_seq.append(diag_val)
             pro_seq.append(pro_val)
             age_seq.append(age_val)
-            coll_seq.append(coll_output)
 
         diag_seq = torch.cat(diag_seq, dim=1) #(1,seq,dim)
         pro_seq = torch.cat(pro_seq, dim=1) #(1,seq,dim)
         age_seq = torch.cat(age_seq, dim=1) #(1,seq,dim)
-        coll_seq = torch.cat(coll_seq, dim=1) #(1,seq,dim)
 
         o1, _ = self.encoders[0](
             diag_seq
@@ -119,11 +115,8 @@ class Model(nn.Module):
             age_seq
         )
 
-        o4, _ = self.encoders[3](
-            coll_seq
-        )
 
-        patient_representations = torch.cat([o1, o2, o3, o4], dim=-1).squeeze(dim=0) # (seq, dim*4)
+        patient_representations = torch.cat([o1, o2, o3], dim=-1).squeeze(dim=0) # (seq, dim*4)
         queries = self.query(patient_representations) # (seq, dim)
 
         # graph memory module
@@ -158,7 +151,8 @@ class Model(nn.Module):
         '''R:convert O and predict'''
 
 
-        output = self.output(torch.cat([query, fact1, fact2], dim=-1)) # (1, dim)
+
+        output = self.output(torch.cat([query, fact1, fact2, coll_output], dim=-1)) # (1, dim)
 
 
         if self.training:
