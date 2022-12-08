@@ -207,12 +207,14 @@ def isATC4(dataset_type):
 def isNDC(dataset_type):
     return (dataset_type == Dataset_Type.fullNDC or 
                 dataset_type == Dataset_Type.full1VNDC or
-                    dataset_type == Dataset_Type.fullM1VNDC)
+                    dataset_type == Dataset_Type.realisticNDC or
+                        dataset_type == Dataset_Type.fullM1VNDC)
 
 def isAge(dataset_model_type):
     return (dataset_model_type == Dataset_Type.full3Age or
              dataset_model_type == Dataset_Type.full4Age or
              dataset_model_type == Dataset_Type.realistic3 or
+             dataset_model_type == Dataset_Type.realisticNDC or
              dataset_model_type == Dataset_Type.realisticNoPro3 or
              dataset_model_type == Dataset_Type.realistic4 or 
              dataset_model_type == Dataset_Type.multiRealisticNoPro3 or
@@ -232,6 +234,7 @@ def isSota(dataset_type):
 def isByDate(dataset_type):
     return (dataset_type == Dataset_Type.realistic4 or 
                 dataset_type == Dataset_Type.realistic3 or
+                dataset_type == Dataset_Type.realisticNDC or
                 dataset_type == Dataset_Type.realisticNoPro3 or 
                 dataset_type == Dataset_Type.multiRealisticNoPro3)
 
