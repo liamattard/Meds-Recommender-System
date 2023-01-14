@@ -196,7 +196,9 @@ def isATC3(dataset_type):
                         dataset_type == Dataset_Type.full3Age or
                             dataset_type == Dataset_Type.realistic3 or 
                                 dataset_type == Dataset_Type.realisticNoPro3 or 
-                                    dataset_type == Dataset_Type.multiRealisticNoPro3)
+                                    dataset_type == Dataset_Type.multiRealisticNoPro3 or
+                                        dataset_type == Dataset_Type.sota_single_only or
+                                            dataset_type == Dataset_Type.sota_with_single)
 
 def isATC4(dataset_type):
     return (dataset_type == Dataset_Type.fullATC4 or 
@@ -229,7 +231,9 @@ def isCollFil(dataset_model_type):
 
 def isSota(dataset_type):
     return (dataset_type == Dataset_Type.sota or
-             dataset_type == Dataset_Type.old_sota)
+             dataset_type == Dataset_Type.old_sota or 
+                dataset_type == Dataset_Type.sota_with_single or 
+                    dataset_type == Dataset_Type.sota_single_only)
 
 def isByDate(dataset_type):
     return (dataset_type == Dataset_Type.realistic4 or 
