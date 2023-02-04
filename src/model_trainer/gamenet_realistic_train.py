@@ -11,6 +11,7 @@ import src.models.gamenet_coll as gamenet_coll
 import src.models.gamenet_item_coll as gamenet_item_coll
 import src.models.gamenet_age_item_coll as gamenet_age_item_coll
 import src.models.final_model as final_model
+import src.models.gamenet_all as gamenet_all 
 
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.optim import Adam
@@ -40,51 +41,26 @@ def wandb_config(wandb_name, parameters):
         }
         return wandb.config
 
-def load_data(dataset, model_type):
-    diag_voc = dataset.voc[0]['diag_voc']
-    pro_voc = dataset.voc[0]['pro_voc']
-    med_voc = dataset.voc[0]['med_voc']
 
-    if tools.isfinal(model_type):
-        age_voc = dataset.voc[0]['age_voc']
-        hr_voc = dataset.voc[0]['heartrate_voc']
-        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word),
-                len(age_voc.idx2word), len(hr_voc.idx2word),
-                len(med_voc.idx2word))
-    elif tools.isAge(model_type):
-        age_voc = dataset.voc[0]['age_voc']
-        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word))
-    elif tools.isCollFil(model_type):
-        age_voc = dataset.voc[0]['age_voc']
-        patient_voc = dataset.voc[0]['patient_voc']
+def train(dataset, dataset_type, model_type, wandb_name, features):
 
-        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(patient_voc.idx2word), len(age_voc.idx2word), len(med_voc.idx2word))
-    else:
-        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(med_voc.idx2word))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    return voc_size, device
+    med_voc = len(dataset.voc[0]["med_voc"].idx2word)
 
-def train(dataset, dataset_type, model_type, wandb_name):
-
-    voc_size, device = load_data(dataset, model_type)
+    if features == None:
+        diag_voc = dataset.voc[0]['diag_voc']
+        pro_voc = dataset.voc[0]['pro_voc']
+        voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), med_voc)
+        model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
+    else:
+        voc_size = None
+        model = gamenet_all.Model(dataset.ehr_adj[0], device, features, dataset.voc[0])
 
     data_train = dataset.data[0][0]
     data_eval = dataset.data[0][1]
 
-    if model_type == Model_Type.game_net_age:
-        model = gamenet_age.Model(voc_size, dataset.ehr_adj[0], device)
-    elif model_type == Model_Type.game_net_age_item_coll:
-        model = gamenet_age_item_coll.Model(voc_size, dataset.ehr_adj[0], device)
-    elif model_type == Model_Type.final_model:
-        model = final_model.Model(voc_size, dataset.ehr_adj[0], device)
-    elif tools.isCollFil(model_type):
-        model = gamenet_coll.Model(voc_size, dataset.ehr_adj[0], device)
-    elif tools.isItemCollFil(model_type):
-        model = gamenet_item_coll.Model(voc_size, dataset.ehr_adj[0], device)
-    else:
-        model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
 
     model.to(device=device)
     parameters = get_n_params(model)
@@ -97,7 +73,7 @@ def train(dataset, dataset_type, model_type, wandb_name):
     tic2 = 0
 
     # Evaluation before the model is trained
-    eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_name, 0, [])
+    eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, 0, [], features)
 
     EPOCH = 50
     for epoch in range(EPOCH):
@@ -110,30 +86,14 @@ def train(dataset, dataset_type, model_type, wandb_name):
 
         for step, input in enumerate(data_train):
 
-            current_visit = input[:3]
-            seq_input =  [current_visit]
-            if input[-1] != []:
-                seq_input = input[-1] + seq_input
+            seq_input = calculate_input(features, input)
+            target_output1, _ = model(seq_input)
 
-            if tools.isfinal(model_type):
-                age = input[3]
-                hr = input[5]
-                target_output1, _ = model(seq_input, age, hr)
-            elif tools.isAge(model_type):
-                age = input[3]
-                target_output1, _ = model(seq_input, age)
-            elif tools.isCollFil(model_type):
-                patient_id = input[4]
-                age = input[3]
-                target_output1, _ = model(seq_input, age, patient_id)
-            else:
-                target_output1, _ = model(seq_input)
+            loss_bce_target = np.zeros((1, med_voc))
+            loss_bce_target[:, input[2]] = 1
 
-            loss_bce_target = np.zeros((1, voc_size[-1]))
-            loss_bce_target[:, current_visit[2]] = 1
-
-            loss_multi_target = np.full((1, voc_size[-1]), -1)
-            for idx, item in enumerate(current_visit[2]):
+            loss_multi_target = np.full((1, med_voc), -1)
+            for idx, item in enumerate(input[2]):
                 loss_multi_target[0][idx] = item
 
 
@@ -159,7 +119,7 @@ def train(dataset, dataset_type, model_type, wandb_name):
         print ('training time: {}, test time: {}'.format(time.time() - tic,
             time.time() - tic2))
 
-        eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_name, (epoch + 1), loss_array)
+        eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, (epoch + 1), loss_array, features)
 
 
         dir = 'saved_models/' + model_type.name + '/'+ dataset_type.name 
@@ -170,11 +130,11 @@ def train(dataset, dataset_type, model_type, wandb_name):
 
         torch.save(model.state_dict(), open(path, 'wb'))
 
-def eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_name, epoch, loss_array):
+def eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, epoch, loss_array, features):
 
-    test_results = eval(model, data_eval, voc_size, model_type)
+    test_results = eval(model, data_eval, med_voc, features)
 
-    train_results =  eval(model, data_train, voc_size, model_type)
+    train_results =  eval(model, data_train, med_voc, features)
 
     metrics_dic = {
             "Epoch": epoch,
@@ -206,7 +166,7 @@ def eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_na
             "Training precision at 5": train_results.top_5,
             "Training precision at 10": train_results.top_10,
             "Training precision at 20": train_results.top_20,
-            }
+           }
 
     if loss_array != []:
         metrics_dic["Loss"] = np.mean(loss_array)
@@ -215,7 +175,7 @@ def eval_full_epoch(model, data_train, data_eval, voc_size, model_type, wandb_na
         wandb.log(metrics_dic)
         wandb.watch(model)
 
-def eval(model, data_eval, voc_size, model_type):
+def eval(model, data_eval, med_voc, features):
     model.eval()
 
     smm_record = []
@@ -224,7 +184,6 @@ def eval(model, data_eval, voc_size, model_type):
     med_cnt, visit_cnt = 0, 0
 
     covered_medicine = set()
-    patient_medicine_arr = np.zeros((len(data_eval), voc_size[-1]))
 
     for step, input in enumerate(data_eval):
 
@@ -235,21 +194,11 @@ def eval(model, data_eval, voc_size, model_type):
 
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
-        if tools.isfinal(model_type):
-            age = input[3]
-            hr = input[5]
-            target_output = model(seq_input, age, hr)
-        elif tools.isAge(model_type):
-            age = input[3]
-            target_output = model(seq_input, age)
-        elif tools.isCollFil(model_type):
-            age = input[3]
-            patient_id = input[4]
-            target_output = model(seq_input, age, patient_id)
-        else:
-            target_output = model(seq_input)
+        seq_input = calculate_input(features, input)
+        target_output = model(seq_input)
 
-        y_gt_tmp = np.zeros(voc_size[-1])
+
+        y_gt_tmp = np.zeros(med_voc)
         y_gt_tmp[current_visit[2]] = 1
         y_gt.append(y_gt_tmp)
 
@@ -269,9 +218,6 @@ def eval(model, data_eval, voc_size, model_type):
         visit_cnt += 1
         med_cnt += len(y_pred_label_tmp)
         
-        for i in y_pred_label_tmp:
-            patient_medicine_arr[step, i] = 1
-
         covered_medicine.update(get_rec_medicine(y_pred_tmp))
 
 
@@ -297,10 +243,8 @@ def eval(model, data_eval, voc_size, model_type):
     ))
 
     # calculating the coverage and the personalisation metrics
-    x = cosine_similarity(patient_medicine_arr)
-    iu1 = np.triu_indices(1016, k=1)
-    personalisation = 1 - np.mean(x[iu1])
-    coverage = (len(covered_medicine)/voc_size[-1]) * 100
+    coverage = (len(covered_medicine)/med_voc) * 100
+
 
     results = Results()
     results.jaccard = np.mean(ja)
@@ -310,7 +254,6 @@ def eval(model, data_eval, voc_size, model_type):
     results.f1 = np.mean(avg_f1)
     results.avg_med = med_cnt / visit_cnt
     results.coverage = coverage
-    results.personalisation = personalisation
     results.macro_f1 = np.mean(macro_f1)
     results.roc_auc = np.mean(roc_auc)
     results.top_1 = np.mean(p_1)
@@ -320,4 +263,78 @@ def eval(model, data_eval, voc_size, model_type):
     
     return results
 
+def test(model_path, model_type, dataset, features):
 
+    data_train = dataset.data[0][0]
+    data_eval = dataset.data[0][1]
+
+    voc_size, device = load_data(dataset, model_type)
+    model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
+
+    model.load_state_dict(torch.load(open(model_path, 'rb'), map_location=device))
+    model.to(device=device)
+
+    tic = time.time()
+    result = []
+
+    eval_full_epoch(model, data_train, data_eval,  model_type, None, 0, [], features)
+
+    result = np.array(result)
+    mean = result.mean(axis=0)
+    std = result.std(axis=0)
+
+    outstring = ""
+    for m, s in zip(mean, std):
+        outstring += "{:.4f} $\pm$ {:.4f} & ".format(m, s)
+
+    print (outstring)
+    print ('test time: {}'.format(time.time() - tic))
+
+
+def calculate_input(features, input):
+
+    if features != None:
+        input_map = {}
+        input_map["size"] = 1 + len(input[-1])
+
+        diag_seq = []
+        proc_seq = []
+        med_seq = []
+
+        for visit in input[-1]:
+            diag_seq.append(visit[0])
+            proc_seq.append(visit[1])
+            med_seq.append(visit[2])
+
+        diag_seq.append(input[0])
+        proc_seq.append(input[1])
+        med_seq.append(input[2])
+
+        input_map["medicine"] = med_seq 
+
+        if "diagnosis" in features:
+            input_map["diagnosis"] = diag_seq
+
+        if "procedures" in features:
+            input_map["procedures"] = proc_seq
+
+        if "age" in features:
+            input_map["age"] = [[input[3]] ]* input_map["size"]
+
+        if "gender" in features:
+            input_map["gender"] = [[input[5]]] * input_map["size"]
+
+        if "insurance" in features:
+            input_map["insurance"] = [[input[6]]] * input_map["size"]
+
+        if "heartrate" in features:
+            input_map["heartrate"] = [input[7]] * input_map["size"]
+
+        return input_map
+    else:
+        current_visit = input[:3]
+        seq_input =  [current_visit]
+        if input[-1] != []:
+            seq_input = input[-1] + seq_input
+
+        return seq_input 

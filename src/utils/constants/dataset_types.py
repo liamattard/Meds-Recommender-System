@@ -8,9 +8,10 @@ class Dataset_Type(enum.Enum):
     realistic3 = "Realistic Dataset with visit split ATC3"
     realisticNDC = "Realistic Dataset with visit split NDC"
 
-    # Objective 2
-    multiRealisticNoPro3 = "Realistic Dataset with visit split ATC3 and rows with empty procedures patients more than 1"
+    # Objective 3
     realisticNoPro3 = "Realistic Dataset with visit split ATC3 and rows with empty procedures"
+
+    multiRealisticNoPro3 = "Realistic Dataset with visit split ATC3 and rows with empty procedures and only patients more than 1"
 
     full4Age = "Full Dataset with ATC4 codes and age"
     full3Age = "Full Dataset with ATC3 codes and age"
@@ -31,5 +32,7 @@ class Dataset_Type(enum.Enum):
     old_sota = "State of the art dataset used by GameNet/SafeDrug"
     sota_single_only = "State of the art dataset but with only single visits"
     sota_with_single = "State of the art dataset inlcuding single + sota"
+
+    all = "realistic 3 with no pro and all of the newly added items"
 
     experiment = "Experimental dataset type"

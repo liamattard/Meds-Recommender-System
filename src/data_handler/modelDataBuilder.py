@@ -26,12 +26,15 @@ def build_realistic_dataset(db, dataset_type):
     visit_by_time = query_handler.load_user_visit_time(db)
     visit_medicine_map = query_handler.load_visit_medicine(db, dataset_type)
     user_age_map = query_handler.load_user_age_map(db)
+    user_insurance_map = query_handler.load_user_insurance(db)
+    user_gender_map = query_handler.load_user_gender_map(db)
 
     data_train = []
     data_test = []
 
     voc = {'diag_voc': Voc(), 'pro_voc': Voc(), 'med_voc': Voc(), 'age_voc':
-            Voc(), 'patient_voc': Voc(), 'heartrate_voc': Voc()}
+            Voc(), 'patient_voc': Voc(), 'heartrate_voc': Voc(), 
+            'insurance_voc': Voc(), 'gender_voc': Voc()}
 
     if tools.isNoPro(dataset_type):
         voc['pro_voc'].idx2word[0] = 'empty'
@@ -68,6 +71,18 @@ def build_realistic_dataset(db, dataset_type):
                 user_age = user_age_map[patient_id]
                 voc["age_voc"] = utils.append(voc["age_voc"], user_age)
 
+                #Getting insurace type
+                insurance_type = "other"
+                if patient_id in user_insurance_map:
+                    insurance_type = user_insurance_map[patient_id]
+                voc["insurance_voc"] = utils.append(voc["insurance_voc"], insurance_type)
+
+                #Getting gender
+                gender = "other"
+                if patient_id in user_gender_map:
+                    gender = user_gender_map[patient_id]
+                voc["gender_voc"] = utils.append(voc["gender_voc"], gender)
+
                 #Getting patient Heart Rate
                 heartrate = None
                 if visit in visit_heartrate:
@@ -91,6 +106,8 @@ def build_realistic_dataset(db, dataset_type):
 
                 visit_arr.append(voc["age_voc"].word2idx[user_age])
                 visit_arr.append(voc["patient_voc"].word2idx[patient_id])
+                visit_arr.append(voc["gender_voc"].word2idx[gender])
+                visit_arr.append(voc["insurance_voc"].word2idx[insurance_type])
                 
                 if heartrate != None:
                     heartrate_min = voc["heartrate_voc"].word2idx[heartrate[0]]
@@ -236,7 +253,7 @@ def build_dataset(db, dataset_type):
         pickle.dump(ehr_adj, handle)
 
 def build_sota_dataset():
-    data = pickle.load(open('data/dataset/sota/data.pkl','rb'))
+    data = dill.load(open('data/dataset/sota/data.pkl','rb'))
     voc = dill.load(open('data/dataset/sota/voc.pkl','rb'))
 
     split_point = int(len(data) * 80/100)

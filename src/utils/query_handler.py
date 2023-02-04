@@ -112,6 +112,11 @@ def load_user_visit_time(db):
 
     return visit_by_time
 
+def load_user_insurance(db):
+    insurance_query = open(queries_base_path + "getInsuranceType.sql").read()
+    user_insurance_list = db.query(insurance_query)
+    return dict(user_insurance_list)
+
 def load_user_heartrate(db):
     visit_query = open(queries_base_path + "getHeartRateVisits.sql").read()
     visit_heartrate = db.query(visit_query)
