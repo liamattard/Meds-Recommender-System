@@ -187,10 +187,6 @@ def eval(model, data_eval, med_voc, features):
 
     for step, input in enumerate(data_eval):
 
-        current_visit = input[:3]
-        seq_input =  [current_visit]
-        if input[-1] != []:
-            seq_input = input[-1] + seq_input
 
         y_gt, y_pred, y_pred_prob, y_pred_label = [], [], [], []
         
@@ -199,7 +195,7 @@ def eval(model, data_eval, med_voc, features):
 
 
         y_gt_tmp = np.zeros(med_voc)
-        y_gt_tmp[current_visit[2]] = 1
+        y_gt_tmp[input[2]] = 1
         y_gt.append(y_gt_tmp)
 
         # prediction prod
