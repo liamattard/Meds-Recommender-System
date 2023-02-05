@@ -23,17 +23,17 @@ def use_wandb(wandb_name,config):
     if wandb_name != None:
         wandb.init(project=wandb_name, entity="liam_dratta", config=config)
 
-def wandb_config(wandb_name, parameters):
+def wandb_config(wandb_name, parameters, epoch):
     if wandb_name != None:
         wandb.config = {
           "learning_rate": 0.0002,
-          "epochs": 50,
+          "epochs": epoch,
           "parameters":parameters
         }
         return wandb.config
 
 
-def train(dataset, dataset_type, model_type, wandb_name, features, threshold):
+def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs):
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,7 +56,7 @@ def train(dataset, dataset_type, model_type, wandb_name, features, threshold):
     model.to(device=device)
     parameters = get_n_params(model)
     print('parameters', parameters)
-    config = wandb_config(wandb_name, parameters)
+    config = wandb_config(wandb_name, parameters, num_of_epochs)
     use_wandb(wandb_name, config)
 
     optimizer = Adam(list(model.parameters()), lr=0.0002)
@@ -66,7 +66,7 @@ def train(dataset, dataset_type, model_type, wandb_name, features, threshold):
     # Evaluation before the model is trained
     eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, 0, [], features, threshold)
 
-    EPOCH = 50
+    EPOCH = num_of_epochs
     for epoch in range(EPOCH):
         tic = time.time()
         print ('\nepoch {} --------------------------'.format(epoch + 1))
@@ -111,7 +111,12 @@ def train(dataset, dataset_type, model_type, wandb_name, features, threshold):
         eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, (epoch + 1), loss_array, features, threshold)
 
 
-        dir = 'saved_models/' + model_type.name + '/'+ dataset_type.name 
+        if features == None:
+            dir = 'saved_models/gameNet/'+ dataset_type.name 
+        else:
+            dir = 'saved_models/gameNet/'+"_".join(list(features))
+            
+
         path = dir + '/' +  'Epoch_{}.model'.format(epoch)
 
         if not os.path.exists(dir):
