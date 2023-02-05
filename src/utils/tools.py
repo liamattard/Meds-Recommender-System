@@ -187,8 +187,7 @@ def isM1V(dataset_type):
     return (dataset_type == Dataset_Type.fullM1VATC4 or 
                 dataset_type == Dataset_Type.fullM1VATC3 or
                     dataset_type == Dataset_Type.fullM1VNDC or
-                        dataset_type == Dataset_Type.multiRealisticNoPro3 or 
-                            dataset_type == Dataset_Type.all)
+                        dataset_type == Dataset_Type.multiRealisticNoPro3)
 
 def isATC3(dataset_type):
     return (dataset_type == Dataset_Type.fullATC3 or 
@@ -200,7 +199,8 @@ def isATC3(dataset_type):
                                     dataset_type == Dataset_Type.multiRealisticNoPro3 or
                                         dataset_type == Dataset_Type.sota_single_only or
                                             dataset_type == Dataset_Type.sota_with_single or 
-                                                dataset_type == Dataset_Type.all)
+                                                dataset_type == Dataset_Type.all or
+                                                    dataset_type == Dataset_Type.all_no_empty_prod)
 
 def isATC4(dataset_type):
     return (dataset_type == Dataset_Type.fullATC4 or 
@@ -224,7 +224,8 @@ def isAge(dataset_model_type):
              dataset_model_type == Dataset_Type.multiRealisticNoPro3 or
              dataset_model_type == Model_Type.game_net_age or 
              dataset_model_type == Model_Type.game_net_age_item_coll or
-             dataset_model_type == Dataset_Type.all) 
+             dataset_model_type == Dataset_Type.all or
+             dataset_model_type == Dataset_Type.all_no_empty_prod) 
 
 def isItemCollFil(dataset_model_type):
     return (dataset_model_type == Model_Type.game_net_item_coll)
@@ -244,7 +245,8 @@ def isByDate(dataset_type):
                 dataset_type == Dataset_Type.realisticNDC or
                 dataset_type == Dataset_Type.realisticNoPro3 or 
                 dataset_type == Dataset_Type.multiRealisticNoPro3 or
-                dataset_type == Dataset_Type.all)
+                dataset_type == Dataset_Type.all or 
+                dataset_type == Dataset_Type.all_no_empty_prod)
 
 def isNoPro(dataset_type):
     return (dataset_type == Dataset_Type.realisticNoPro3 or

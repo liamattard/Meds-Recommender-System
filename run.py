@@ -22,10 +22,10 @@ def main():
 
     # features = {"gender","heartrate","insurance","age", "diagnosis", "procedures"}
     features = {"diagnosis", "procedures"}
-    # features = None
+    threshold = 0.85
 
     model_type = Model_Type.game_net
-    train_test.start(model_type, dataset, dataset_type, wandb_name, features)
+    train_test.start(model_type, dataset, dataset_type, wandb_name, features, threshold)
 
 def test(model_type, dataset):
     model_path = "/home/liam/Documents/Masters/saved_models/realistic/gameNet/0_85_threshold/game_net/realistic3/Epoch_49.model"

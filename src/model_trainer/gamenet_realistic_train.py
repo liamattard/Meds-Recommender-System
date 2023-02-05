@@ -6,24 +6,15 @@ import torch.nn.functional as F
 
 #Models
 import src.models.gamenet as gamenet
-import src.models.gamenet_age as gamenet_age
-import src.models.gamenet_coll as gamenet_coll
-import src.models.gamenet_item_coll as gamenet_item_coll
-import src.models.gamenet_age_item_coll as gamenet_age_item_coll
-import src.models.final_model as final_model
 import src.models.gamenet_all as gamenet_all 
 
-from sklearn.metrics.pairwise import cosine_similarity
 from torch.optim import Adam
 from src.utils.classes.results import Results
 from src.utils.tools import multi_label_metric
 from src.utils.tools import llprint
 from src.utils.tools import get_n_params 
 from src.utils.tools import get_rec_medicine 
-import src.utils.tools as tools
 import os
-
-from src.utils.constants.model_types import Model_Type
 
 torch.manual_seed(1203)
 np.random.seed(1203)
@@ -42,7 +33,7 @@ def wandb_config(wandb_name, parameters):
         return wandb.config
 
 
-def train(dataset, dataset_type, model_type, wandb_name, features):
+def train(dataset, dataset_type, model_type, wandb_name, features, threshold):
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -73,7 +64,7 @@ def train(dataset, dataset_type, model_type, wandb_name, features):
     tic2 = 0
 
     # Evaluation before the model is trained
-    eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, 0, [], features)
+    eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, 0, [], features, threshold)
 
     EPOCH = 50
     for epoch in range(EPOCH):
@@ -81,8 +72,6 @@ def train(dataset, dataset_type, model_type, wandb_name, features):
         print ('\nepoch {} --------------------------'.format(epoch + 1))
         model.train()
         loss_array = []
-        age = None
-
 
         for step, input in enumerate(data_train):
 
@@ -119,7 +108,7 @@ def train(dataset, dataset_type, model_type, wandb_name, features):
         print ('training time: {}, test time: {}'.format(time.time() - tic,
             time.time() - tic2))
 
-        eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, (epoch + 1), loss_array, features)
+        eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, (epoch + 1), loss_array, features, threshold)
 
 
         dir = 'saved_models/' + model_type.name + '/'+ dataset_type.name 
@@ -130,11 +119,11 @@ def train(dataset, dataset_type, model_type, wandb_name, features):
 
         torch.save(model.state_dict(), open(path, 'wb'))
 
-def eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, epoch, loss_array, features):
+def eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, epoch, loss_array, features, threshold):
 
-    test_results = eval(model, data_eval, med_voc, features)
+    test_results = eval(model, data_eval, med_voc, features, threshold)
 
-    train_results =  eval(model, data_train, med_voc, features)
+    train_results =  eval(model, data_train, med_voc, features, threshold)
 
     metrics_dic = {
             "Epoch": epoch,
@@ -175,7 +164,7 @@ def eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, epoch, lo
         wandb.log(metrics_dic)
         wandb.watch(model)
 
-def eval(model, data_eval, med_voc, features):
+def eval(model, data_eval, med_voc, features, threshold):
     model.eval()
 
     smm_record = []
@@ -204,8 +193,8 @@ def eval(model, data_eval, med_voc, features):
 
         # predioction med set
         y_pred_tmp = target_output.copy()
-        y_pred_tmp[y_pred_tmp>=0.85] = 1
-        y_pred_tmp[y_pred_tmp<0.85] = 0
+        y_pred_tmp[y_pred_tmp>=threshold] = 1
+        y_pred_tmp[y_pred_tmp<threshold] = 0
         y_pred.append(y_pred_tmp)
 
         # prediction label
@@ -273,7 +262,7 @@ def test(model_path, model_type, dataset, features):
     tic = time.time()
     result = []
 
-    eval_full_epoch(model, data_train, data_eval,  model_type, None, 0, [], features)
+    eval_full_epoch(model, data_train, data_eval,  model_type, None, 0, [], features, torch.threshold)
 
     result = np.array(result)
     mean = result.mean(axis=0)
