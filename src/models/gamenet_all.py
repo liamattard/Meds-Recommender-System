@@ -124,7 +124,7 @@ class Model(nn.Module):
 
         if "age" in input:
             encoders.append(get_encoder_result(
-                input, self.proc_embeddings, self.procedures_encoder, "age"))
+                input, self.age_embeddings, self.age_encoder, "age"))
 
         if "insurance" in input:
             encoders.append(get_encoder_result(
