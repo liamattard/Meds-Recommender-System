@@ -43,25 +43,34 @@ class Model(nn.Module):
 
     def forward(self, input, age):
 
-        # generate medical embeddings and queries
+        # Forming the patient representation using the three embeddings
         i1_seq = []
         i2_seq = []
-
         i3_seq = []
 
         def mean_embedding(embedding):
-            return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
+            return embedding.mean(dim=1).unsqueeze(dim=0)
         for adm in input:
 
+            # Procedures
             i1 = mean_embedding(self.dropout(
                     self.embeddings[0](torch.LongTensor(adm[0])
                         .unsqueeze(dim=0)
-                        .to(self.device)))) # (1,1,dim)
+                        .to(self.device))))
 
-            i2 = mean_embedding(self.dropout(self.embeddings[1](torch.LongTensor(adm[1]).unsqueeze(dim=0).to(self.device))))
+            # Diagnoses
+            i2 = mean_embedding(self.dropout(
+                    self.embeddings[1](torch.LongTensor(adm[1])
+                        .unsqueeze(dim=0)
+                        .to(self.device))))
 
-            i3 = mean_embedding(self.dropout(self.embeddings[2](torch.LongTensor([age]).unsqueeze(dim=0).to(self.device))))
+            # Age
+            i3 = mean_embedding(self.dropout(
+                    self.embeddings[2](torch.LongTensor([age])
+                        .unsqueeze(dim=0)
+                        .to(self.device))))
 
+            breakpoint()
             i1_seq.append(i1)
             i2_seq.append(i2)
             i3_seq.append(i3)
@@ -92,6 +101,10 @@ class Model(nn.Module):
 
         drug_memory = self.ehr_gcn()
 
+        #ignore
+        history_values = torch.tensor([0])
+        history_keys= torch.tensor([0])
+
         if len(input) > 1:
             history_keys = queries[:(queries.size(0)-1)] # (seq-1, dim)
 
@@ -108,7 +121,6 @@ class Model(nn.Module):
 
         if len(input) > 1:
             visit_weight = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
-            x_temp = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
             weighted_values = visit_weight.mm(history_values) # (1, size)
             fact2 = torch.mm(weighted_values, drug_memory) # (1, dim)
         else:

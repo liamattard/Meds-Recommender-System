@@ -206,8 +206,8 @@ def eval(model, data_eval, voc_size, with_age):
 
             # predioction med set
             y_pred_tmp = target_output.copy()
-            y_pred_tmp[y_pred_tmp>=0.7] = 1
-            y_pred_tmp[y_pred_tmp<0.7] = 0
+            y_pred_tmp[y_pred_tmp>=0.5] = 1
+            y_pred_tmp[y_pred_tmp<0.5] = 0
             y_pred.append(y_pred_tmp)
 
             # prediction label

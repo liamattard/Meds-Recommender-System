@@ -95,3 +95,21 @@ def temp():
         path = os.path.join('saved_models/', 'net_{}_{}.pth'.format('pure_col', epoch))
         torch.save(model.state_dict(), path)
 
+
+    # ---------------------------------------------
+    # IGNORE
+    medicine = {}
+    avg_medicine = []
+
+    # Calculating the most commoon 20 items
+    for i in dataset.data[0][0]:
+        for med in i[2]:
+            avg_medicine.append(len(i[2]))
+            if med in medicine:
+                medicine[med] += 1
+            else:
+                medicine[med] = 1
+
+    medicine = {k: v for k, v in sorted(medicine.items(), key=lambda item: item[1], reverse=True)}
+    x = list(medicine.keys())[0:50]
+    # ---------------------------------------------
