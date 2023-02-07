@@ -4,7 +4,6 @@ import wandb
 import numpy as np
 import torch.nn.functional as F
 
-#Models
 import src.models.gamenet as gamenet
 import src.models.gamenet_all as gamenet_all 
 
@@ -62,9 +61,6 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs)
     optimizer = Adam(list(model.parameters()), lr=0.0002)
 
     tic2 = 0
-
-    # Evaluation before the model is trained
-    eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, 0, [], features, threshold)
 
     EPOCH = num_of_epochs
     for epoch in range(EPOCH):

@@ -18,41 +18,55 @@ class Model(nn.Module):
         x = 0
 
         if "age" in features:
-            self.age_embeddings = nn.Embedding(len(voc["age_voc"].idx2word), emb_dim)
+            self.age_embeddings = nn.Embedding(
+                len(voc["age_voc"].idx2word), emb_dim)
             self.embeddings.append(self.age_embeddings)
+            self.age_encoder = nn.GRU(emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         if "gender" in features:
-            self.gender_embeddings = nn.Embedding(len(voc["gender_voc"].idx2word), emb_dim)
+            self.gender_embeddings = nn.Embedding(
+                len(voc["gender_voc"].idx2word), emb_dim)
             self.embeddings.append(self.gender_embeddings)
+            self.gender_encoder = nn.GRU(
+                emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         if "insurance" in features:
-            self.insurance_embeddings = nn.Embedding(len(voc["insurance_voc"].idx2word), emb_dim)
+            self.insurance_embeddings = nn.Embedding(
+                len(voc["insurance_voc"].idx2word), emb_dim)
             self.embeddings.append(self.insurance_embeddings)
+            self.insurance_encoder = nn.GRU(
+                emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         if "heartrate" in features:
-            self.hr_embeddings = nn.Embedding(len(voc["heartrate_voc"].idx2word), emb_dim)
+            self.hr_embeddings = nn.Embedding(
+                len(voc["heartrate_voc"].idx2word), emb_dim)
             self.embeddings.append(self.hr_embeddings)
+            self.hr_encoder = nn.GRU(emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         if "diagnosis" in features:
-            self.diag_embeddings = nn.Embedding(len(voc["diag_voc"].idx2word), emb_dim)
+            self.diag_embeddings = nn.Embedding(
+                len(voc["diag_voc"].idx2word), emb_dim)
             self.embeddings.append(self.diag_embeddings)
+            self.diagnosis_encoder = nn.GRU(
+                emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         if "procedures" in features:
-            self.proc_embeddings = nn.Embedding(len(voc["pro_voc"].idx2word), emb_dim)
+            self.proc_embeddings = nn.Embedding(
+                len(voc["pro_voc"].idx2word), emb_dim)
             self.embeddings.append(self.proc_embeddings)
+            self.procedures_encoder = nn.GRU(
+                emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         self.device = device
         self.dropout = nn.Dropout(p=0.4)
 
-        self.encoders = nn.ModuleList([nn.GRU(
-                emb_dim, emb_dim * 2, 
-                batch_first=True) for _ in range(len(features)-1)])
+        #  for _ in range(len(features)-1)
 
         self.query = nn.Sequential(
             nn.ReLU(),
@@ -60,7 +74,7 @@ class Model(nn.Module):
         )
 
         self.ehr_gcn = GCN(voc_size=self.med_voc,
-                emb_dim=emb_dim, adj=ehr_adj, device=device)
+                           emb_dim=emb_dim, adj=ehr_adj, device=device)
 
         self.inter = Parameter(torch.FloatTensor(1))
 
@@ -68,7 +82,7 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Linear(emb_dim * 3, emb_dim * 2),
             nn.ReLU(),
-            nn.Linear(emb_dim * 2, self.med_voc) 
+            nn.Linear(emb_dim * 2, self.med_voc)
         )
 
         self.init_weights()
@@ -78,78 +92,88 @@ class Model(nn.Module):
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
 
-
-        def get_encoder(input, layer, item):
+        def get_encoder_result(input, layer, encoder, item):
             values = []
 
             for adm in input[item]:
                 values.append(get_embedding(layer, adm))
 
-            seq = torch.cat(values, dim=1) #(1,seq,dim)
+            seq = torch.cat(values, dim=1)  # (1,seq,dim)
 
-            encoder, _ = self.encoders[0](
+            result, _ = encoder(
                 seq
-            ) 
+            )
 
-            return encoder 
-
+            return result
 
         def get_embedding(layer, value):
-                return mean_embedding(self.dropout(
-                    layer(torch.LongTensor(value)
-                        .unsqueeze(dim=0)
-                        .to(self.device)))) # (1,1,dim)
+            return mean_embedding(self.dropout(
+                layer(torch.LongTensor(value)
+                      .unsqueeze(dim=0)
+                      .to(self.device))))  # (1,1,dim)
 
         encoders = []
 
         if "diagnosis" in input:
-            encoders.append(get_encoder(input, self.diag_embeddings, "diagnosis"))
+            encoders.append(get_encoder_result(
+                input, self.diag_embeddings, self.diagnosis_encoder, "diagnosis"))
 
         if "procedures" in input:
-            encoders.append(get_encoder(input, self.proc_embeddings, "procedures"))
+            encoders.append(get_encoder_result(
+                input, self.proc_embeddings, self.procedures_encoder, "procedures"))
 
         if "age" in input:
-            encoders.append(get_encoder(input, self.proc_embeddings, "age"))
+            encoders.append(get_encoder_result(
+                input, self.proc_embeddings, self.procedures_encoder, "age"))
 
         if "insurance" in input:
-            encoders.append(get_encoder(input, self.insurance_embeddings, "insurance"))
+            encoders.append(get_encoder_result(
+                input, self.insurance_embeddings, self.insurance_encoder, "insurance"))
 
         if "gender" in input:
-            encoders.append(get_encoder(input, self.gender_embeddings, "gender"))
+            encoders.append(get_encoder_result(
+                input, self.gender_embeddings, self.gender_encoder, "gender"))
 
         if "heartrate" in input:
-            encoders.append(get_encoder(input, self.hr_embeddings, "heartrate"))
+            encoders.append(get_encoder_result(
+                input, self.hr_embeddings, self.hr_encoder, "heartrate"))
 
-        patient_representations = torch.cat(encoders, dim=-1).squeeze(dim=0) # (seq, dim*4)
-        queries = self.query(patient_representations) # (seq, dim)
+        patient_representations = torch.cat(
+            encoders, dim=-1).squeeze(dim=0)  # (seq, dim*4)
+        queries = self.query(patient_representations)  # (seq, dim)
 
         # graph memory module
         '''I:generate current input'''
-        query = queries[-1:] # (1,dim)
+        query = queries[-1:]  # (1,dim)
 
         drug_memory = self.ehr_gcn()
 
         if input["size"] > 1:
-            history_keys = queries[:(queries.size(0)-1)] # (seq-1, dim)
-            history_values = np.zeros((input["size"]-1 , self.med_voc))
-            for idx,med in enumerate(input["medicine"][:-1]):
-                history_values[idx,med] = 1
+            history_keys = queries[:(queries.size(0)-1)]  # (seq-1, dim)
+            history_values = np.zeros((input["size"]-1, self.med_voc))
+            for idx, med in enumerate(input["medicine"][:-1]):
+                history_values[idx, med] = 1
 
-            history_values = torch.FloatTensor(history_values).to(self.device) # (seq-1, size)
-            
+            history_values = torch.FloatTensor(
+                history_values).to(self.device)  # (seq-1, size)
+
         '''O:read from global memory bank and dynamic memory bank'''
-        key_weights1 = F.softmax(torch.mm(query, drug_memory.t()), dim=-1)  # (1, size)
+        key_weights1 = F.softmax(
+            torch.mm(query, drug_memory.t()), dim=-1)  # (1, size)
         fact1 = torch.mm(key_weights1, drug_memory)  # (1, dim)
 
         if input["size"] > 1:
-            visit_weight = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
-            x_temp = F.softmax(torch.mm(query, history_keys.t()), dim=-1) # (1, seq-1)
-            weighted_values = visit_weight.mm(history_values) # (1, size)
-            fact2 = torch.mm(weighted_values, drug_memory) # (1, dim)
+            visit_weight = F.softmax(
+                torch.mm(query, history_keys.t()), dim=-1)  # (1, seq-1)
+            x_temp = F.softmax(
+                torch.mm(query, history_keys.t()), dim=-1)  # (1, seq-1)
+            weighted_values = visit_weight.mm(history_values)  # (1, size)
+            fact2 = torch.mm(weighted_values, drug_memory)  # (1, dim)
         else:
             fact2 = fact1
         '''R:convert O and predict'''
-        output = self.output(torch.cat([query, fact1, fact2], dim=-1)) # (1, dim)
+        output = self.output(
+            torch.cat([query, fact1, fact2], dim=-1))  # (1, dim)
 
         if self.training:
             neg_pred_prob = torch.sigmoid(output)
@@ -169,7 +193,6 @@ class Model(nn.Module):
         self.inter.data.uniform_(-initrange, initrange)
 
 
-
 class GCN(nn.Module):
     def __init__(self, voc_size, emb_dim, adj, device=torch.device('cpu:0')):
         super(GCN, self).__init__()
@@ -178,7 +201,6 @@ class GCN(nn.Module):
         self.device = device
 
         adj = self.normalize(adj + np.eye(adj.shape[0]))
-
 
         self.adj = torch.FloatTensor(adj).to(device)
         self.x = torch.eye(voc_size).to(device)
@@ -236,6 +258,5 @@ class GraphConvolution(nn.Module):
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' \
-               + str(self.in_features) + ' -> ' \
-               + str(self.out_features) + ')'
-
+            + str(self.in_features) + ' -> ' \
+            + str(self.out_features) + ')'

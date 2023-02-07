@@ -3,29 +3,33 @@ from src.utils.constants.dataset_types import Dataset_Type
 
 import src.data_handler.start as load_data
 import src.model_trainer.start as train_test
+import src.probability_tests.tests as probability_tests
 import numpy as np
+
+# All Available Features:
+# -gender
+# -insurance
+# -age
+# -diagnosis
+# -procedures
+# -heartrate
 
 def main():
 
-    wandb_name = None
 
-    dataset_type = Dataset_Type.all
-
+    dataset_type = Dataset_Type.all_no_empty_prod
     dataset = load_data.start(dataset_type)
-
-    # dataset.data[0][0], dataset.data[0][1] = filter_visits_with_one(dataset)
-    # dataset.data[0][0], dataset.data[0][1] = undersampling(dataset)
-
-    # dataset.data[0][0], dataset.data[0][1] = filter_visits_more_than_one(dataset)
 
     print_statistics_realistic(dataset)
 
-    # features = {"gender","heartrate","insurance","age", "diagnosis", "procedures"}
-    features = {"diagnosis", "procedures"}
-    threshold = 0.85
-    epochs = 20
+    features = {"procedures"}
 
-    train_test.start(dataset, dataset_type, wandb_name, features, threshold, epochs)
+    train_test.start(dataset =dataset, 
+                    dataset_type = dataset_type, 
+                    wandb= "objective_one_three",
+                    features=features,
+                    threshold =0.85,
+                    epochs=10)
 
 def test(model_type, dataset):
     model_path = "/home/liam/Documents/Masters/saved_models/realistic/gameNet/0_85_threshold/game_net/realistic3/Epoch_49.model"
