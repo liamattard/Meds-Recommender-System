@@ -12,21 +12,21 @@ import numpy as np
 # -age
 # -diagnosis
 # -procedures
-# -heartrate
 
 def main():
 
 
-    dataset_type = Dataset_Type.all_no_empty_prod
+    dataset_type = Dataset_Type.all_4
     dataset = load_data.start(dataset_type)
 
     print_statistics_realistic(dataset)
 
-    features = {"procedures"}
+    # features = {"insurance", "diagnosis","procedures", "age", "gender"}
+    features = {"diagnosis"}
 
     train_test.start(dataset =dataset, 
                     dataset_type = dataset_type, 
-                    wandb= "objective_one_three",
+                    wandb= None,
                     features=features,
                     threshold =0.85,
                     epochs=10)

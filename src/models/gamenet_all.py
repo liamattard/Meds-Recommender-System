@@ -6,72 +6,33 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+import transformers
+
+
 
 class Model(nn.Module):
-    def __init__(self, ehr_adj, device, features, voc, emb_dim=64):
+    def __init__(self, ehr_adj, device, med_voc, pretrained=True):
         super(Model, self).__init__()
 
-        self.med_voc = len(voc["med_voc"].idx2word)
+        # Load pre-trained GPT-2 model
+        self.gpt2 = transformers.GPT2Model.from_pretrained('gpt2-xl')
 
-        self.embeddings = []
+        # Freeze the pre-trained layers
+        if pretrained:
+            for param in self.gpt2.parameters():
+                param.requires_grad = False
 
-        x = 0
+        emb_dim = 64
 
-        if "age" in features:
-            self.age_embeddings = nn.Embedding(
-                len(voc["age_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.age_embeddings)
-            self.age_encoder = nn.GRU(emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "gender" in features:
-            self.gender_embeddings = nn.Embedding(
-                len(voc["gender_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.gender_embeddings)
-            self.gender_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "insurance" in features:
-            self.insurance_embeddings = nn.Embedding(
-                len(voc["insurance_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.insurance_embeddings)
-            self.insurance_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "heartrate" in features:
-            self.hr_embeddings = nn.Embedding(
-                len(voc["heartrate_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.hr_embeddings)
-            self.hr_encoder = nn.GRU(emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "diagnosis" in features:
-            self.diag_embeddings = nn.Embedding(
-                len(voc["diag_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.diag_embeddings)
-            self.diagnosis_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "procedures" in features:
-            self.proc_embeddings = nn.Embedding(
-                len(voc["pro_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.proc_embeddings)
-            self.procedures_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
+        self.med_voc = len(med_voc)
 
         self.device = device
         self.dropout = nn.Dropout(p=0.4)
 
-        #  for _ in range(len(features)-1)
-
         self.query = nn.Sequential(
-            nn.Linear(emb_dim * x, 64),
+            nn.Linear(768, 256),
             nn.LeakyReLU(),
-            nn.Linear(64, emb_dim),
+            nn.Linear(256, emb_dim),
         )
 
         self.ehr_gcn = GCN(voc_size=self.med_voc,
@@ -86,62 +47,13 @@ class Model(nn.Module):
             nn.Linear(emb_dim * 2, self.med_voc)
         )
 
-        self.init_weights()
+    def forward(self, input_ids, attention_mask):
 
-    def forward(self, input):
 
-        def mean_embedding(embedding):
-            return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
+        hidden_states = self.gpt2(input_ids[0], attention_mask=attention_mask[0])[0]
 
-        def get_encoder_result(input, layer, encoder, item):
-            values = []
+        queries = self.query(hidden_states)  # (seq, dim)
 
-            for adm in input[item]:
-                values.append(get_embedding(layer, adm))
-
-            seq = torch.cat(values, dim=1)  # (1,seq,dim)
-
-            result, _ = encoder(
-                seq
-            )
-
-            return result
-
-        def get_embedding(layer, value):
-            return mean_embedding(self.dropout(
-                layer(torch.LongTensor(value)
-                      .unsqueeze(dim=0)
-                      .to(self.device))))  # (1,1,dim)
-
-        encoders = []
-
-        if "diagnosis" in input:
-            encoders.append(get_encoder_result(
-                input, self.diag_embeddings, self.diagnosis_encoder, "diagnosis"))
-
-        if "procedures" in input:
-            encoders.append(get_encoder_result(
-                input, self.proc_embeddings, self.procedures_encoder, "procedures"))
-
-        if "age" in input:
-            encoders.append(get_encoder_result(
-                input, self.age_embeddings, self.age_encoder, "age"))
-
-        if "insurance" in input:
-            encoders.append(get_encoder_result(
-                input, self.insurance_embeddings, self.insurance_encoder, "insurance"))
-
-        if "gender" in input:
-            encoders.append(get_encoder_result(
-                input, self.gender_embeddings, self.gender_encoder, "gender"))
-
-        if "heartrate" in input:
-            encoders.append(get_encoder_result(
-                input, self.hr_embeddings, self.hr_encoder, "heartrate"))
-
-        patient_representations = torch.cat(
-            encoders, dim=-1).squeeze(dim=0)  # (seq, dim*4)
-        queries = self.query(patient_representations)  # (seq, dim)
 
         # graph memory module
         '''I:generate current input'''
