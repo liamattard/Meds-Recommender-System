@@ -17,12 +17,12 @@ import numpy as np
 def main():
 
 
-    dataset_type = Dataset_Type.all_no_empty_prod
+    dataset_type = Dataset_Type.all_4
     dataset = load_data.start(dataset_type)
 
     print_statistics_realistic(dataset)
 
-    features = {"procedures"}
+    features = {"diagnosis", "gender", "procedures", "insurance", "age"}
 
     train_test.start(dataset =dataset, 
                     dataset_type = dataset_type, 

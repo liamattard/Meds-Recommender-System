@@ -135,7 +135,7 @@ def eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, epoch, lo
 
     test_results = eval(model, data_eval, med_voc, features, threshold)
 
-    train_results =  eval(model, data_train, med_voc, features, threshold)
+    # train_results =  eval(model, data_train, med_voc, features, threshold)
 
     metrics_dic = {
             "Epoch": epoch,
@@ -152,22 +152,23 @@ def eval_full_epoch(model, data_train, data_eval, med_voc, wandb_name, epoch, lo
             "Testing precision at 1": test_results.top_1,
             "Testing precision at 5": test_results.top_5,
             "Testing precision at 10": test_results.top_10,
-            "Testing precision at 20": test_results.top_20,
-            "Training Jaccard": train_results.jaccard,
-            "Training precision recall AUC": train_results.precision_recall_auc,
-            "Training precision": train_results.precision,
-            "Training recall": train_results.recall,
-            "Training F1": train_results.f1,
-            "Training average medications": train_results.avg_med,
-            "Training coverage": train_results.coverage,
-            "Training personalisation": train_results.personalisation,
-            "Training macro F1": train_results.macro_f1,
-            "Training roc auc": train_results.roc_auc,
-            "Training precision at 1": train_results.top_1,
-            "Training precision at 5": train_results.top_5,
-            "Training precision at 10": train_results.top_10,
-            "Training precision at 20": train_results.top_20,
-           }
+            "Testing precision at 20": test_results.top_20
+            }
+        #     "Training Jaccard": train_results.jaccard,
+        #     "Training precision recall AUC": train_results.precision_recall_auc,
+        #     "Training precision": train_results.precision,
+        #     "Training recall": train_results.recall,
+        #     "Training F1": train_results.f1,
+        #     "Training average medications": train_results.avg_med,
+        #     "Training coverage": train_results.coverage,
+        #     "Training personalisation": train_results.personalisation,
+        #     "Training macro F1": train_results.macro_f1,
+        #     "Training roc auc": train_results.roc_auc,
+        #     "Training precision at 1": train_results.top_1,
+        #     "Training precision at 5": train_results.top_5,
+        #     "Training precision at 10": train_results.top_10,
+        #     "Training precision at 20": train_results.top_20,
+        #    }
 
     if loss_array != []:
         metrics_dic["Loss"] = np.mean(loss_array)

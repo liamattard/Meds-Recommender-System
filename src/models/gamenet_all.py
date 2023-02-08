@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import transformers
 
 
 class Model(nn.Module):
@@ -12,6 +13,8 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.med_voc = len(voc["med_voc"].idx2word)
+
+        self.gpt2 = transformers.GPT2Model.from_pretrained('gpt2')
 
         self.embeddings = []
 
@@ -82,6 +85,13 @@ class Model(nn.Module):
         self.output = nn.Sequential(
             nn.ReLU(),
             nn.Linear(emb_dim * 3, emb_dim * 2),
+            nn.ReLU(),
+            nn.Linear(emb_dim * 2, self.med_voc)
+        )
+
+        self.gpt_output= nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(768, emb_dim * 2),
             nn.ReLU(),
             nn.Linear(emb_dim * 2, self.med_voc)
         )
@@ -176,14 +186,26 @@ class Model(nn.Module):
         output = self.output(
             torch.cat([query, fact1, fact2], dim=-1))  # (1, dim)
 
+        output[output>=0.85] = 1
+        
+        output[output<0.85] = 0
+        x = output.type(torch.int32)
+
+        gpt2_output = self.gpt2(input_ids=x)[0]
+        output = gpt2_output[:, 0, :].squeeze(1)
+
+        b = self.gpt_output(output)
+
+        
         if self.training:
-            neg_pred_prob = torch.sigmoid(output)
+            neg_pred_prob = torch.sigmoid(b)
             neg_pred_prob = neg_pred_prob.t() * neg_pred_prob  # (voc_size, voc_size)
             batch_neg = neg_pred_prob
 
-            return output, batch_neg
+            return b, batch_neg
         else:
             return output
+
 
     def init_weights(self):
         """Initialize weights."""
