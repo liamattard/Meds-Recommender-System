@@ -204,7 +204,7 @@ class Model(nn.Module):
 
             return b, batch_neg
         else:
-            return output
+            return b 
 
 
     def init_weights(self):
