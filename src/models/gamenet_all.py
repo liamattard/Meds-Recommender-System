@@ -69,8 +69,9 @@ class Model(nn.Module):
         #  for _ in range(len(features)-1)
 
         self.query = nn.Sequential(
-            nn.ReLU(),
-            nn.Linear(emb_dim * x, emb_dim),
+            nn.Linear(emb_dim * x, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, emb_dim),
         )
 
         self.ehr_gcn = GCN(voc_size=self.med_voc,

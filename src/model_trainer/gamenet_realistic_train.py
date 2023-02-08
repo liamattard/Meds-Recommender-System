@@ -69,35 +69,46 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs)
         model.train()
         loss_array = []
 
-        for step, input in enumerate(data_train):
+        batch_size = 32
 
-            seq_input = calculate_input(features, input)
-            target_output1, _ = model(seq_input)
+        num_batches = range(0, len(data_train), batch_size) 
+        for i in num_batches:
+            
+            batch_users = data_train[i:i+batch_size]
 
-            loss_bce_target = np.zeros((1, med_voc))
-            loss_bce_target[:, input[2]] = 1
+            for patient in batch_users:
 
-            loss_multi_target = np.full((1, med_voc), -1)
-            for idx, item in enumerate(input[2]):
-                loss_multi_target[0][idx] = item
+                llprint('\rTraining batch (size:{} ): {} / {}'.format(batch_size,int(i/32), len(num_batches))) 
+
+                seq_input = calculate_input(features, patient)
+                target_output1, _ = model(seq_input)
+
+                loss_bce_target = np.zeros((1, med_voc))
+                loss_bce_target[:, patient[2]] = 1
+
+                loss_multi_target = np.full((1, med_voc), -1)
+                for idx, item in enumerate(patient[2]):
+                    loss_multi_target[0][idx] = item
 
 
-            loss_bce = F.binary_cross_entropy_with_logits(target_output1,
-                    torch.FloatTensor(loss_bce_target).to(device))
+                loss_bce = F.binary_cross_entropy_with_logits(target_output1,
+                        torch.FloatTensor(loss_bce_target).to(device))
 
-            loss_multi = F.multilabel_margin_loss(
-                    torch.sigmoid(target_output1),
-                    torch.LongTensor(loss_multi_target).to(device))
+                loss_multi = F.multilabel_margin_loss(
+                        torch.sigmoid(target_output1),
+                        torch.LongTensor(loss_multi_target).to(device))
 
-            loss = 0.9 * loss_bce + 0.1 * loss_multi
-            loss_array.append(loss.item())
+                loss = 0.9 * loss_bce + 0.1 * loss_multi
+                loss_array.append(loss.item())
 
-            optimizer.zero_grad()
-            loss.backward(retain_graph=True)
+                #  Back Propogation
+                optimizer.zero_grad()
+                loss.backward(retain_graph=True)
+
             optimizer.step()
 
 
-            llprint('\rtraining step: {} / {}'.format(step, len(data_train))) 
+            # llprint('\rtraining step: {} / {}'.format(step, len(data_train))) 
             tic2 = time.time() 
 
 
