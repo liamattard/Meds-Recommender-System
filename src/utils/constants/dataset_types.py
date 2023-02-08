@@ -36,4 +36,6 @@ class Dataset_Type(enum.Enum):
     all = "realistic 3 with no pro and all of the newly added items"
     all_no_empty_prod = "realistic 3 with no pro and all of the newly added items no empty pro no empty pro"
 
+    all_4 = "realistic 4 with no pro and all of the newly added items"
+
     experiment = "Experimental dataset type"
