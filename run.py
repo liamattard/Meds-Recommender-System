@@ -1,5 +1,5 @@
 from src.utils.constants.model_types import Model_Type
-from src.utils.constants.dataset_types import Dataset_Type 
+from src.utils.constants.dataset_types import Dataset_Type
 
 import src.data_handler.start as load_data
 import src.model_trainer.start as train_test
@@ -12,29 +12,29 @@ import numpy as np
 # -age
 # -diagnosis
 # -procedures
-# -heartrate
 
 def main():
 
-
-    dataset_type = Dataset_Type.all_no_empty_prod
+    dataset_type = Dataset_Type.all_3
     dataset = load_data.start(dataset_type)
 
     print_statistics_realistic(dataset)
 
-    features = {"procedures"}
+    features = {"diagnosis", "procedures"}
 
-    train_test.start(dataset =dataset, 
-                    dataset_type = dataset_type, 
-                    wandb= "objective_one_three",
-                    features=features,
-                    threshold =0.85,
-                    epochs=10)
+    train_test.start(dataset=dataset,
+                     dataset_type=dataset_type,
+                     wandb="objective_one_three",
+                     features=features,
+                     threshold=0.85,
+                     epochs=10,
+                     batches=32,
+                     lr=0.002)
 
 def test(model_type, dataset):
     model_path = "/home/liam/Documents/Masters/saved_models/realistic/gameNet/0_85_threshold/game_net/realistic3/Epoch_49.model"
     train_test.test(model_path, model_type, dataset)
-    
+
 
 def print_statistics_non_realistic(dataset):
 
@@ -63,19 +63,18 @@ def print_statistics_non_realistic(dataset):
         for med in medicine_arr:
             patient_medicine_arr[(patient_i + patient_train), med] = 1
 
-
     coverage = (len(covered_medicine)/medicine_count) * 100
 
     dot_product = np.dot(patient_medicine_arr, patient_medicine_arr.T)
     magnitudes = np.linalg.norm(patient_medicine_arr, axis=1)
     cosine_similarity = dot_product / np.outer(magnitudes, magnitudes)
-    x = np.triu_indices(1016, k = 1)
+    x = np.triu_indices(1016, k=1)
 
-    print("Patient Count: " , patient_count)
-    print("Visit Count: " , visit_count)
-    print("Medicine Count: " , prescription_count)
-    print("Coverage: " , coverage)
-    print("Personalisation:" , 1 - np.mean(cosine_similarity[x]))
+    print("Patient Count: ", patient_count)
+    print("Visit Count: ", visit_count)
+    print("Medicine Count: ", prescription_count)
+    print("Coverage: ", coverage)
+    print("Personalisation:", 1 - np.mean(cosine_similarity[x]))
     # print("HHI: " , hhi(patient_medicine_arr))
 
 
@@ -100,10 +99,11 @@ def print_statistics_realistic(dataset):
 
     coverage = (len(covered_medicine)/medicine_count) * 100
 
-    print("Patient Count: " , patient_count)
-    print("Visit Count: " , visit_count)
-    print("Medicine Count: " , prescription_count)
-    print("Coverage: " , coverage)
+    print("Patient Count: ", patient_count)
+    print("Visit Count: ", visit_count)
+    print("Medicine Count: ", prescription_count)
+    print("Coverage: ", coverage)
+
 
 def undersampling(dataset):
     return dataset.data[0][0][:4417], dataset.data[0][1][:1025]
@@ -121,7 +121,8 @@ def filter_visits_more_than_one(dataset):
         if len(patient) > 1:
             y.append(patient)
 
-    return x,y
+    return x, y
+
 
 def filter_visits_with_one(dataset):
 
@@ -135,7 +136,8 @@ def filter_visits_with_one(dataset):
         if len(patient) == 1:
             y.append(patient)
 
-    return x,y
+    return x, y
+
 
 if __name__ == "__main__":
     main()

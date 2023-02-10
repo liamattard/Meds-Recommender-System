@@ -33,9 +33,7 @@ class Dataset_Type(enum.Enum):
     sota_single_only = "State of the art dataset but with only single visits"
     sota_with_single = "State of the art dataset inlcuding single + sota"
 
-    all = "realistic 3 with no pro and all of the newly added items"
-    all_no_empty_prod = "realistic 3 with no pro and all of the newly added items no empty pro no empty pro"
-
-    all_4 = "realistic 4 with no pro and all of the newly added items"
+    all_3 = "realistic 3 and all of the newly added items"
+    all_4 = "realistic 4 and all of the newly added items"
 
     experiment = "Experimental dataset type"

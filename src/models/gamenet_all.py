@@ -11,7 +11,7 @@ class Model(nn.Module):
     def __init__(self, ehr_adj, device, features, voc, emb_dim=64):
         super(Model, self).__init__()
 
-        self.med_voc = len(voc["med_voc"].idx2word)
+        self.med_voc_len = len(voc["med_voc"].idx2word)
 
         self.embeddings = []
 
@@ -21,7 +21,8 @@ class Model(nn.Module):
             self.age_embeddings = nn.Embedding(
                 len(voc["age_voc"].idx2word), emb_dim)
             self.embeddings.append(self.age_embeddings)
-            self.age_encoder = nn.GRU(emb_dim, emb_dim * 2, batch_first=True)
+            self.age_encoder = nn.GRU(
+                emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         if "gender" in features:
@@ -38,13 +39,6 @@ class Model(nn.Module):
             self.embeddings.append(self.insurance_embeddings)
             self.insurance_encoder = nn.GRU(
                 emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "heartrate" in features:
-            self.hr_embeddings = nn.Embedding(
-                len(voc["heartrate_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.hr_embeddings)
-            self.hr_encoder = nn.GRU(emb_dim, emb_dim * 2, batch_first=True)
             x += 2
 
         if "diagnosis" in features:
@@ -74,7 +68,7 @@ class Model(nn.Module):
             nn.Linear(64, emb_dim),
         )
 
-        self.ehr_gcn = GCN(voc_size=self.med_voc,
+        self.ehr_gcn = GCN(voc_size=self.med_voc_len,
                            emb_dim=emb_dim, adj=ehr_adj, device=device)
 
         self.inter = Parameter(torch.FloatTensor(1))
@@ -83,7 +77,7 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Linear(emb_dim * 3, emb_dim * 2),
             nn.ReLU(),
-            nn.Linear(emb_dim * 2, self.med_voc)
+            nn.Linear(emb_dim * 2, self.med_voc_len)
         )
 
         self.init_weights()
@@ -135,10 +129,6 @@ class Model(nn.Module):
             encoders.append(get_encoder_result(
                 input, self.gender_embeddings, self.gender_encoder, "gender"))
 
-        if "heartrate" in input:
-            encoders.append(get_encoder_result(
-                input, self.hr_embeddings, self.hr_encoder, "heartrate"))
-
         patient_representations = torch.cat(
             encoders, dim=-1).squeeze(dim=0)  # (seq, dim*4)
         queries = self.query(patient_representations)  # (seq, dim)
@@ -151,7 +141,7 @@ class Model(nn.Module):
 
         if input["size"] > 1:
             history_keys = queries[:(queries.size(0)-1)]  # (seq-1, dim)
-            history_values = np.zeros((input["size"]-1, self.med_voc))
+            history_values = np.zeros((input["size"]-1, self.med_voc_len))
             for idx, med in enumerate(input["medicine"][:-1]):
                 history_values[idx, med] = 1
 
@@ -165,8 +155,6 @@ class Model(nn.Module):
 
         if input["size"] > 1:
             visit_weight = F.softmax(
-                torch.mm(query, history_keys.t()), dim=-1)  # (1, seq-1)
-            x_temp = F.softmax(
                 torch.mm(query, history_keys.t()), dim=-1)  # (1, seq-1)
             weighted_values = visit_weight.mm(history_values)  # (1, size)
             fact2 = torch.mm(weighted_values, drug_memory)  # (1, dim)
