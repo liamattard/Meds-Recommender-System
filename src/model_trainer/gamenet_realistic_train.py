@@ -356,4 +356,7 @@ def loss_function(med_voc_len, patient, target_output):
         torch.sigmoid(target_output),
         torch.LongTensor(loss_multi_target))
 
-    return 0.9 * loss_bce + 0.1 * loss_multi
+    loss = torch.nn.MSELoss()
+    loss_mse =  loss(torch.sigmoid(target_output),torch.FloatTensor(loss_bce_target))
+
+    return 0.7 * loss_bce + 0.3 * loss_mse

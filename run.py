@@ -20,13 +20,13 @@ def main():
 
     print_statistics_realistic(dataset)
 
-    features = {"diagnosis", "procedures"}
+    features = {"diagnosis", "procedures", "insurance","gender", "age"}
 
     train_test.start(dataset=dataset,
                      dataset_type=dataset_type,
-                     wandb="objective_one_three",
+                     wandb=None,
                      features=features,
-                     threshold=0.85,
+                     threshold=0.50,
                      epochs=10,
                      batches=32,
                      lr=0.002)
