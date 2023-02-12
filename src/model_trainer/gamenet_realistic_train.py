@@ -68,6 +68,7 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
 
         metrics_map = {}
         model.train()
+        model.g_diagnosis_age = {}
         print('\nepoch {} --------------------------'.format(epoch + 1))
 
         num_batches = range(0, len(data_train), batches)
@@ -245,14 +246,13 @@ def calculate_input(features, input):
         if "procedures" in features:
             input_map["procedures"] = proc_seq
 
-        if "age" in features:
-            input_map["age"] = [[input[3]]] * input_map["size"]
-
-        if "gender" in features:
-            input_map["gender"] = [[input[5]]] * input_map["size"]
 
         if "insurance" in features:
             input_map["insurance"] = [[input[6]]] * input_map["size"]
+
+        input_map["age"] = input[3]
+        input_map["g_diagnosis"] = input[7]
+        input_map["gender"] = input[5]
 
         return input_map
     else:
@@ -352,11 +352,7 @@ def loss_function(med_voc_len, patient, target_output):
     loss_bce = F.binary_cross_entropy_with_logits(target_output,
                                                   torch.FloatTensor(loss_bce_target))
 
-    loss_multi = F.multilabel_margin_loss(
-        torch.sigmoid(target_output),
-        torch.LongTensor(loss_multi_target))
-
     loss = torch.nn.MSELoss()
     loss_mse =  loss(torch.sigmoid(target_output),torch.FloatTensor(loss_bce_target))
 
-    return 0.7 * loss_bce + 0.3 * loss_mse
+    return 0.5 * loss_bce + 0.5 * loss_mse

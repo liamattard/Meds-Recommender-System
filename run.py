@@ -20,7 +20,7 @@ def main():
 
     print_statistics_realistic(dataset)
 
-    features = {"diagnosis", "procedures", "insurance","gender", "age"}
+    features = {"diagnosis", "procedures"}
 
     train_test.start(dataset=dataset,
                      dataset_type=dataset_type,

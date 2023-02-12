@@ -22,6 +22,10 @@ def files_exist(dataset_type):
 
 def file_names(dataset_type):
     pre_text = "data/dataset/" + dataset_type.name + "/"
+
+    if dataset_type == Dataset_Type.medicine_only:
+        return pre_text+"data.pkl", pre_text+"voc.pkl", pre_text
+
     return pre_text+"data.pkl", pre_text+"voc.pkl", pre_text+"ehr_adj.pkl", pre_text
 
 def convert_ndc10_to_ndc11(ndcCode):

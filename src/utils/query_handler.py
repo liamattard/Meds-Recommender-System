@@ -86,6 +86,12 @@ def load_user_age_map(db):
 
     return user_age_map
 
+def load_user_general_diagnosis(db):
+    general_diagnose_query = open(queries_base_path + "getGeneralDiagnose.sql").read()
+    user_general_diagnose_list = db.query(general_diagnose_query)
+    user_general_diagnose_list = dict(user_general_diagnose_list)
+
+    return user_general_diagnose_list
 
 def load_user_gender_map(db):
 

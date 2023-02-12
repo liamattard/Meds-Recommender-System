@@ -15,82 +15,82 @@ class Model(nn.Module):
 
         self.embeddings = []
 
-        x = 0
+        self.g_diagnosis_age = {}
 
-        if "age" in features:
-            self.age_embeddings = nn.Embedding(
-                len(voc["age_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.age_embeddings)
-            self.age_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
+        self.diag_embeddings = nn.Embedding(
+            len(voc["diag_voc"].idx2word), emb_dim)
+        self.diagnosis_encoder = nn.GRU(
+            emb_dim, emb_dim * 2, batch_first=True)
 
-        if "gender" in features:
-            self.gender_embeddings = nn.Embedding(
-                len(voc["gender_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.gender_embeddings)
-            self.gender_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
+        self.proc_embeddings = nn.Embedding(
+            len(voc["pro_voc"].idx2word), emb_dim)
+        self.procedures_encoder = nn.GRU(
+            emb_dim, emb_dim * 2, batch_first=True)
 
-        if "insurance" in features:
-            self.insurance_embeddings = nn.Embedding(
-                len(voc["insurance_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.insurance_embeddings)
-            self.insurance_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "diagnosis" in features:
-            self.diag_embeddings = nn.Embedding(
-                len(voc["diag_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.diag_embeddings)
-            self.diagnosis_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
-
-        if "procedures" in features:
-            self.proc_embeddings = nn.Embedding(
-                len(voc["pro_voc"].idx2word), emb_dim)
-            self.embeddings.append(self.proc_embeddings)
-            self.procedures_encoder = nn.GRU(
-                emb_dim, emb_dim * 2, batch_first=True)
-            x += 2
+        self.embeddings.append(self.proc_embeddings)
+        self.embeddings.append(self.diag_embeddings)
 
         self.device = device
         self.dropout = nn.Dropout(p=0.4)
 
-        #  for _ in range(len(features)-1)
-
         self.query = nn.Sequential(
-            nn.Linear(emb_dim * x, 64),
+            nn.Linear(emb_dim * 4, self.med_voc_len),
             nn.LeakyReLU(),
-            nn.Linear(64, emb_dim),
+            nn.Linear(self.med_voc_len, self.med_voc_len),
         )
 
         self.ehr_gcn = GCN(voc_size=self.med_voc_len,
-                           emb_dim=emb_dim, adj=ehr_adj, device=device)
+                           emb_dim=self.med_voc_len, adj=ehr_adj, device=device)
 
-        self.inter = Parameter(torch.FloatTensor(1))
-
-        self.output = nn.Sequential(
+        self.knn_output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(emb_dim * 3, emb_dim * 2),
+            nn.Linear(self.med_voc_len *3, self.med_voc_len*2),
             nn.ReLU(),
-            nn.Linear(emb_dim * 2, self.med_voc_len)
+            nn.Linear(self.med_voc_len *2, self.med_voc_len)
         )
 
         self.init_weights()
 
     def forward(self, input):
 
+        def get_KNN(input):
+            knn_tensor = torch.zeros(1, self.med_voc_len)
+
+            age = round(input["age"]/10)*10
+            gender = input["gender"]
+            g_diagnosis = input["g_diagnosis"]
+
+            if g_diagnosis in self.g_diagnosis_age:
+                if age in self.g_diagnosis_age[g_diagnosis]:
+                    if gender in self.g_diagnosis_age[g_diagnosis][age]:
+
+                        medicine = self.g_diagnosis_age[g_diagnosis][age][gender]
+                        knn_tensor[:, list(medicine)] = 1
+
+                        self.g_diagnosis_age[g_diagnosis][age][gender].update(
+                            input["medicine"][-1])
+
+                        return knn_tensor
+                    else:
+                        self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
+
+                else:
+                    self.g_diagnosis_age[g_diagnosis][age] = {}
+                    self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
+            else:
+                self.g_diagnosis_age[g_diagnosis] = {}
+                self.g_diagnosis_age[g_diagnosis][age] = {}
+                self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
+
+            return None
+
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
 
-        def get_encoder_result(input, layer, encoder, item):
+        def get_encoder_result(input, layer, encoder):
             values = []
 
-            for adm in input[item]:
+            for adm in input:
                 values.append(get_embedding(layer, adm))
 
             seq = torch.cat(values, dim=1)  # (1,seq,dim)
@@ -109,28 +109,15 @@ class Model(nn.Module):
 
         encoders = []
 
-        if "diagnosis" in input:
-            encoders.append(get_encoder_result(
-                input, self.diag_embeddings, self.diagnosis_encoder, "diagnosis"))
+        encoders.append(get_encoder_result(
+            input["diagnosis"], self.diag_embeddings, self.diagnosis_encoder))
 
-        if "procedures" in input:
-            encoders.append(get_encoder_result(
-                input, self.proc_embeddings, self.procedures_encoder, "procedures"))
-
-        if "age" in input:
-            encoders.append(get_encoder_result(
-                input, self.age_embeddings, self.age_encoder, "age"))
-
-        if "insurance" in input:
-            encoders.append(get_encoder_result(
-                input, self.insurance_embeddings, self.insurance_encoder, "insurance"))
-
-        if "gender" in input:
-            encoders.append(get_encoder_result(
-                input, self.gender_embeddings, self.gender_encoder, "gender"))
+        encoders.append(get_encoder_result(
+            input["procedures"], self.proc_embeddings, self.procedures_encoder))
 
         patient_representations = torch.cat(
             encoders, dim=-1).squeeze(dim=0)  # (seq, dim*4)
+
         queries = self.query(patient_representations)  # (seq, dim)
 
         # graph memory module
@@ -139,48 +126,29 @@ class Model(nn.Module):
 
         drug_memory = self.ehr_gcn()
 
-        if input["size"] > 1:
-            history_keys = queries[:(queries.size(0)-1)]  # (seq-1, dim)
-            history_values = np.zeros((input["size"]-1, self.med_voc_len))
-            for idx, med in enumerate(input["medicine"][:-1]):
-                history_values[idx, med] = 1
-
-            history_values = torch.FloatTensor(
-                history_values).to(self.device)  # (seq-1, size)
-
         '''O:read from global memory bank and dynamic memory bank'''
         key_weights1 = F.softmax(
             torch.mm(query, drug_memory.t()), dim=-1)  # (1, size)
         fact1 = torch.mm(key_weights1, drug_memory)  # (1, dim)
 
-        if input["size"] > 1:
-            visit_weight = F.softmax(
-                torch.mm(query, history_keys.t()), dim=-1)  # (1, seq-1)
-            weighted_values = visit_weight.mm(history_values)  # (1, size)
-            fact2 = torch.mm(weighted_values, drug_memory)  # (1, dim)
-        else:
-            fact2 = fact1
-        '''R:convert O and predict'''
-        output = self.output(
-            torch.cat([query, fact1, fact2], dim=-1))  # (1, dim)
+        knn_output = get_KNN(input)
+
+        if knn_output is None:
+            knn_output = torch.sigmoid(query)
+
+        temp_output = torch.cat([knn_output, torch.sigmoid(query), torch.sigmoid(fact1)])
+        final_knn_output = self.knn_output(temp_output.view(-1))
 
         if self.training:
-            neg_pred_prob = torch.sigmoid(output)
-            neg_pred_prob = neg_pred_prob.t() * neg_pred_prob  # (voc_size, voc_size)
-            batch_neg = neg_pred_prob
-
-            return output, batch_neg
+            return final_knn_output.unsqueeze(dim=0), None
         else:
-            return output
+            return final_knn_output.unsqueeze(dim=0)
 
     def init_weights(self):
         """Initialize weights."""
         initrange = 0.1
         for item in self.embeddings:
             item.weight.data.uniform_(-initrange, initrange)
-
-        self.inter.data.uniform_(-initrange, initrange)
-
 
 class GCN(nn.Module):
     def __init__(self, voc_size, emb_dim, adj, device=torch.device('cpu:0')):

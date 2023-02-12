@@ -52,7 +52,11 @@ def load(dataset_type):
          ehr_adj = dill.load(open(names[2], 'rb'))
     else:
         voc = pickle.load(open(names[1], 'rb'))
-        ehr_adj = pickle.load(open(names[2], 'rb'))
+        if dataset_type == Dataset_Type.medicine_only:
+            ehr_adj = None
+        else:
+            ehr_adj = pickle.load(open(names[2], 'rb'))
+
 
     return Dataset(data=data, voc=voc, ehr_adj=ehr_adj)
 

@@ -187,7 +187,8 @@ def isM1V(dataset_type):
     return (dataset_type == Dataset_Type.fullM1VATC4 or 
                 dataset_type == Dataset_Type.fullM1VATC3 or
                     dataset_type == Dataset_Type.fullM1VNDC or
-                        dataset_type == Dataset_Type.multiRealisticNoPro3)
+                        dataset_type == Dataset_Type.multiRealisticNoPro3 or 
+                            dataset_type == Dataset_Type.medicine_only)
 
 def isATC3(dataset_type):
     return (dataset_type == Dataset_Type.fullATC3 or 
@@ -199,7 +200,8 @@ def isATC3(dataset_type):
                                     dataset_type == Dataset_Type.multiRealisticNoPro3 or
                                         dataset_type == Dataset_Type.sota_single_only or
                                             dataset_type == Dataset_Type.sota_with_single or 
-                                                dataset_type == Dataset_Type.all_3)
+                                                dataset_type == Dataset_Type.all_3 or 
+                                                    dataset_type == Dataset_Type.medicine_only)
 
 def isATC4(dataset_type):
     return (dataset_type == Dataset_Type.fullATC4 or 
@@ -246,6 +248,7 @@ def isByDate(dataset_type):
                 dataset_type == Dataset_Type.realisticNoPro3 or 
                 dataset_type == Dataset_Type.multiRealisticNoPro3 or
                 dataset_type == Dataset_Type.all_3 or 
+                dataset_type == Dataset_Type.medicine_only or
                 dataset_type == Dataset_Type.all_4)
 
 def isNoPro(dataset_type):
@@ -253,3 +256,5 @@ def isNoPro(dataset_type):
                 dataset_type == Dataset_Type.multiRealisticNoPro3)
 
 
+def isMedicineOnly(dataset_type):
+    return (dataset_type == Dataset_Type.medicine_only)

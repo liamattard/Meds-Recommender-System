@@ -36,4 +36,6 @@ class Dataset_Type(enum.Enum):
     all_3 = "realistic 3 and all of the newly added items"
     all_4 = "realistic 4 and all of the newly added items"
 
+    medicine_only = "medicine only dataset for transformer"
+
     experiment = "Experimental dataset type"
