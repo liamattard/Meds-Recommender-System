@@ -90,7 +90,7 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
                 seq_input = calculate_input(features, patient)
                 target_output, _ = model(seq_input)
 
-                loss = loss_function(med_voc_len, patient, target_output)
+                loss = loss_function(med_voc_len, patient, target_output, device)
 
                 batch_loss.append(loss)
 
@@ -105,7 +105,7 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
         results = results_from_metric_map(metrics_map)
 
         eval_full_epoch(model, data_eval, med_voc_len,
-                        wandb_name, (epoch + 1), loss_array, features, threshold, results)
+                        wandb_name, (epoch + 1), loss_array, features, threshold, results, device)
 
         if features == None:
             dir = 'saved_models/gameNet/' + dataset_type.name
@@ -120,9 +120,9 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
         torch.save(model.state_dict(), open(path, 'wb'))
 
 
-def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, features, threshold, train_results):
+def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, features, threshold, train_results, device):
 
-    test_results = eval(model, data_eval, med_voc, features, threshold)
+    test_results = eval(model, data_eval, med_voc, features, threshold, device)
 
     metrics_dic = {
         "Epoch": epoch,
@@ -165,7 +165,7 @@ def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, fe
         wandb.watch(model)
 
 
-def eval(model, data_eval, med_voc, features, threshold):
+def eval(model, data_eval, med_voc, features, threshold, device):
     model.eval()
     metrics_map = {}
     loss_arr = []
@@ -174,7 +174,7 @@ def eval(model, data_eval, med_voc, features, threshold):
 
         seq_input = calculate_input(features, input)
         target_output = model(seq_input)
-        loss_arr.append(loss_function(med_voc, input, target_output).item())
+        loss_arr.append(loss_function(med_voc, input, target_output).item(), device)
 
         metrics_map = calculate_metrics(
             med_voc, input, target_output, threshold, metrics_map)
@@ -340,7 +340,7 @@ def results_from_metric_map(metrics_map):
     return results
 
 
-def loss_function(med_voc_len, patient, target_output):
+def loss_function(med_voc_len, patient, target_output, device):
 
     loss_bce_target = np.zeros((1, med_voc_len))
     loss_bce_target[:, patient[2]] = 1
@@ -350,9 +350,9 @@ def loss_function(med_voc_len, patient, target_output):
         loss_multi_target[0][idx] = item
 
     loss_bce = F.binary_cross_entropy_with_logits(target_output,
-                                                  torch.FloatTensor(loss_bce_target))
+                                                  torch.FloatTensor(loss_bce_target).to(device))
 
     loss = torch.nn.MSELoss()
-    loss_mse =  loss(torch.sigmoid(target_output),torch.FloatTensor(loss_bce_target))
+    loss_mse =  loss(torch.sigmoid(target_output),torch.FloatTensor(loss_bce_target).to(device))
 
     return 0.5 * loss_bce + 0.5 * loss_mse
