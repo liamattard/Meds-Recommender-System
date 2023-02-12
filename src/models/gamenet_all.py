@@ -54,7 +54,7 @@ class Model(nn.Module):
     def forward(self, input):
 
         def get_KNN(input):
-            knn_tensor = torch.zeros(1, self.med_voc_len)
+            knn_tensor = torch.zeros(1, self.med_voc_len).to(self.device)
 
             age = round(input["age"]/10)*10
             gender = input["gender"]
@@ -110,15 +110,15 @@ class Model(nn.Module):
         encoders = []
 
         encoders.append(get_encoder_result(
-            input["diagnosis"], self.diag_embeddings, self.diagnosis_encoder))
+            input["diagnosis"], self.diag_embeddings, self.diagnosis_encoder).to(self.device))
 
         encoders.append(get_encoder_result(
-            input["procedures"], self.proc_embeddings, self.procedures_encoder))
+            input["procedures"], self.proc_embeddings, self.procedures_encoder).to(self.device))
 
         patient_representations = torch.cat(
             encoders, dim=-1).squeeze(dim=0)  # (seq, dim*4)
 
-        queries = self.query(patient_representations)  # (seq, dim)
+        queries = self.query(patient_representations).to(self.device)  # (seq, dim)
 
         # graph memory module
         '''I:generate current input'''
@@ -134,7 +134,7 @@ class Model(nn.Module):
         knn_output = get_KNN(input)
 
         if knn_output is None:
-            knn_output = torch.sigmoid(query)
+            knn_output = torch.sigmoid(query).to(self.device)
 
         temp_output = torch.cat([knn_output, torch.sigmoid(query), torch.sigmoid(fact1)])
         final_knn_output = self.knn_output(temp_output.view(-1))
