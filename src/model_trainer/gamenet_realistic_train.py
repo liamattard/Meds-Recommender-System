@@ -174,7 +174,7 @@ def eval(model, data_eval, med_voc, features, threshold, device):
 
         seq_input = calculate_input(features, input)
         target_output = model(seq_input)
-        loss_arr.append(loss_function(med_voc, input, target_output).item(), device)
+        loss_arr.append(loss_function(med_voc, input, target_output, device).item())
 
         metrics_map = calculate_metrics(
             med_voc, input, target_output, threshold, metrics_map)
