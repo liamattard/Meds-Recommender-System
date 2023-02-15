@@ -24,7 +24,7 @@ def main():
 
     train_test.start(dataset=dataset,
                      dataset_type=dataset_type,
-                     wandb=None,
+                     wandb="objective_one_three",
                      features=features,
                      threshold=0.50,
                      epochs=10,

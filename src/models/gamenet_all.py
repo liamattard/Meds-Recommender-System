@@ -22,6 +22,12 @@ class Model(nn.Module):
         self.diagnosis_encoder = nn.GRU(
             emb_dim, emb_dim * 2, batch_first=True)
 
+        cf_emb_dim = 16
+        self.med_embeddings = nn.Embedding(
+            len(voc["med_voc"].idx2word), cf_emb_dim)
+        self.user_embeddings = nn.Embedding(
+            len(voc["patient_voc"].idx2word), cf_emb_dim)
+
         self.proc_embeddings = nn.Embedding(
             len(voc["pro_voc"].idx2word), emb_dim)
         self.procedures_encoder = nn.GRU(
@@ -44,45 +50,14 @@ class Model(nn.Module):
 
         self.knn_output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(self.med_voc_len *3, self.med_voc_len*2),
+            nn.Linear(self.med_voc_len * 3, self.med_voc_len*2),
             nn.ReLU(),
-            nn.Linear(self.med_voc_len *2, self.med_voc_len)
+            nn.Linear(self.med_voc_len * 2, self.med_voc_len)
         )
 
         self.init_weights()
 
     def forward(self, input):
-
-        def get_KNN(input):
-            knn_tensor = torch.zeros(1, self.med_voc_len).to(self.device)
-
-            age = round(input["age"]/10)*10
-            gender = input["gender"]
-            g_diagnosis = input["g_diagnosis"]
-
-            if g_diagnosis in self.g_diagnosis_age:
-                if age in self.g_diagnosis_age[g_diagnosis]:
-                    if gender in self.g_diagnosis_age[g_diagnosis][age]:
-
-                        medicine = self.g_diagnosis_age[g_diagnosis][age][gender]
-                        knn_tensor[:, list(medicine)] = 1
-
-                        self.g_diagnosis_age[g_diagnosis][age][gender].update(
-                            input["medicine"][-1])
-
-                        return knn_tensor
-                    else:
-                        self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
-
-                else:
-                    self.g_diagnosis_age[g_diagnosis][age] = {}
-                    self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
-            else:
-                self.g_diagnosis_age[g_diagnosis] = {}
-                self.g_diagnosis_age[g_diagnosis][age] = {}
-                self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
-
-            return None
 
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
@@ -118,7 +93,8 @@ class Model(nn.Module):
         patient_representations = torch.cat(
             encoders, dim=-1).squeeze(dim=0)  # (seq, dim*4)
 
-        queries = self.query(patient_representations).to(self.device)  # (seq, dim)
+        queries = self.query(patient_representations).to(
+            self.device)  # (seq, dim)
 
         # graph memory module
         '''I:generate current input'''
@@ -131,12 +107,16 @@ class Model(nn.Module):
             torch.mm(query, drug_memory.t()), dim=-1)  # (1, size)
         fact1 = torch.mm(key_weights1, drug_memory)  # (1, dim)
 
-        knn_output = get_KNN(input)
+        med_embeddings = self.dropout(self.med_embeddings.weight.T
+            .to(self.device))
 
-        if knn_output is None:
-            knn_output = torch.sigmoid(query).to(self.device)
+        user_embeddings = self.user_embeddings(
+            torch.LongTensor([input["patient_id"]]).to(self.device))
+        x = torch.matmul(user_embeddings, med_embeddings)
 
-        temp_output = torch.cat([knn_output, torch.sigmoid(query), torch.sigmoid(fact1)])
+        temp_output = torch.cat(
+            [x, query, fact1])
+        z = temp_output.view(-1)
         final_knn_output = self.knn_output(temp_output.view(-1))
 
         if self.training:
@@ -149,6 +129,7 @@ class Model(nn.Module):
         initrange = 0.1
         for item in self.embeddings:
             item.weight.data.uniform_(-initrange, initrange)
+
 
 class GCN(nn.Module):
     def __init__(self, voc_size, emb_dim, adj, device=torch.device('cpu:0')):

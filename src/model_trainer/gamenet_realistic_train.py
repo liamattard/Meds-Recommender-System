@@ -251,6 +251,7 @@ def calculate_input(features, input):
             input_map["insurance"] = [[input[6]]] * input_map["size"]
 
         input_map["age"] = input[3]
+        input_map["patient_id"] = input[4]
         input_map["g_diagnosis"] = input[7]
         input_map["gender"] = input[5]
 
