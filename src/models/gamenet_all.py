@@ -1,3 +1,4 @@
+from os import wait
 from torch.nn.parameter import Parameter
 
 import math
@@ -15,7 +16,7 @@ class Model(nn.Module):
 
         self.embeddings = []
 
-        self.g_diagnosis_age = {}
+        self.g_diagnosis_insurance= {}
 
         self.diag_embeddings = nn.Embedding(
             len(voc["diag_voc"].idx2word), emb_dim)
@@ -56,31 +57,38 @@ class Model(nn.Module):
         def get_KNN(input):
             knn_tensor = torch.zeros(1, self.med_voc_len).to(self.device)
 
+            insurance = input["insurance"]
             age = round(input["age"]/10)*10
             gender = input["gender"]
             g_diagnosis = input["g_diagnosis"]
 
             if g_diagnosis in self.g_diagnosis_age:
-                if age in self.g_diagnosis_age[g_diagnosis]:
-                    if gender in self.g_diagnosis_age[g_diagnosis][age]:
+                if insurance in self.g_diagnosis_insurance[g_diagnosis]:
+                    if age in self.g_diagnosis_insurance[g_diagnosis][insurance]:
+                        if gender in self.g_diagnosis_insurance[g_diagnosis][insurance][age]:
+                            medicine = self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender]
+                            knn_tensor[:, list(medicine)] = 1
 
-                        medicine = self.g_diagnosis_age[g_diagnosis][age][gender]
-                        knn_tensor[:, list(medicine)] = 1
+                            self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender].update(
+                                input["medicine"][-1])
 
-                        self.g_diagnosis_age[g_diagnosis][age][gender].update(
-                            input["medicine"][-1])
+                            return knn_tensor
+                        else:
+                            self.g_diagnosis_age[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
 
-                        return knn_tensor
                     else:
-                        self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
-
+                        self.g_diagnosis_age[g_diagnosis][insurance][age] = {}
+                        self.g_diagnosis_age[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
+                
                 else:
-                    self.g_diagnosis_age[g_diagnosis][age] = {}
-                    self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
+                    self.g_diagnosis_insurance[g_diagnosis][insurance] = {}
+                    self.g_diagnosis_insurance[g_diagnosis][insurance][age] = {}
+                    self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
             else:
-                self.g_diagnosis_age[g_diagnosis] = {}
-                self.g_diagnosis_age[g_diagnosis][age] = {}
-                self.g_diagnosis_age[g_diagnosis][age][gender] = set(input["medicine"][-1])
+                self.g_diagnosis_insurance[g_diagnosis] = {}
+                self.g_diagnosis_insurance[g_diagnosis][insurance] = {}
+                self.g_diagnosis_insurance[g_diagnosis][insurance][age] = {}
+                self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
 
             return None
 
@@ -134,9 +142,9 @@ class Model(nn.Module):
         knn_output = get_KNN(input)
 
         if knn_output is None:
-            knn_output = torch.sigmoid(query).to(self.device)
+            knn_output = query.to(self.device)
 
-        temp_output = torch.cat([knn_output, torch.sigmoid(query), torch.sigmoid(fact1)])
+        temp_output = torch.cat([knn_output, query, fact1])
         final_knn_output = self.knn_output(temp_output.view(-1))
 
         if self.training:
