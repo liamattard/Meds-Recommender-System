@@ -1,4 +1,5 @@
 import pandas as pd
+import collections
 import numpy as np
 from scipy.stats import pearsonr
 from scipy.stats import chi2_contingency
@@ -7,16 +8,79 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 def start(dataset):
-    gender_medicine_stacked_chart(dataset)
+    # gender_medicine_stacked_chart(dataset)
+    # age_category_medicine_violin_three(dataset)
+    # age_category_medicine_violin(dataset)
+    # age_medicine(dataset)
+    insurance_medicine(dataset)
+    # gender_medicine_bar_char_two(dataset)
+
+def gender_medicine_bar_char_two(dataset):
+    n = None
+    # m = 100
+
+    med_list = list(dataset.voc[0]["med_voc"].idx2word.keys())
+
+    med_len = len(med_list)
+
+    x = np.zeros((2, med_len), dtype='int32')
+    for patient in dataset.data[0][0]:
+        for med in patient[2]:
+
+            # if med > n - 1:
+            #     continue
+
+            # if med < m:
+            #     continue
+
+            # med = med -100
+            
+            gender = dataset.voc[0]["gender_voc"].idx2word[patient[5]]
+            if gender == 'F':
+                x[0,med] = x[0,med] + 1
+            elif gender =='M':
+                x[1,med] = x[1,med] + 1
+            # data[gender].append(med)
+
+    colors = ['#1f77b4', '#ff7f0e']
+    fig, ax = plt.subplots()
+    breakpoint()
+    ax.bar(med_list, x[:][0], color=colors[0], label='Female')
+    ax.bar(med_list, x[:][1], bottom=x[:][0], color=colors[1], label='Male')
+
+    for i, j in enumerate(x[0]):
+
+        if x[1,i] == 0 or x[0,i] == 0:
+            ax.get_children()[i].set_color('black')
+        else:
+            if x[1,i] > j: 
+                ax.get_children()[i].set_color(colors[1])
+            else:
+                ax.get_children()[i].set_color(colors[0])
+        
+        ax.get_children()[i].set_height(2)
+
+    # Add labels and title
+    ax.set_xlabel('Medicine Type')
+    ax.set_ylabel('Proportion of Prescriptions')
+    ax.set_title('Medicine Prescriptions by Gender')
+
+    # Add a legend
+    ax.legend(loc='upper left')
+
+    plt.show()
+
+    breakpoint()
 
 def gender_medicine_stacked_chart(dataset):
+
     gender= []
     medicine = []
     for patient in dataset.data[0][0]:
         for med in patient[2]:
-            if med < 100:
-                gender.append(dataset.voc[0]["gender_voc"].idx2word[patient[5]])
-                medicine.append(med)
+            # if med < 100:
+            gender.append(dataset.voc[0]["gender_voc"].idx2word[patient[5]])
+            medicine.append(med)
     
     data = {"Gender": gender, "Medication ID": medicine}
 
@@ -48,22 +112,33 @@ def gender_medicine_bar_chart(dataset):
     medicine = []
     for patient in dataset.data[0][0]:
         for med in patient[2]:
-            if med < 100:
-                gender.append(dataset.voc[0]["gender_voc"].idx2word[patient[5]])
-                medicine.append(med)
+            # if med < 17:
+            gender.append(dataset.voc[0]["gender_voc"].idx2word[patient[5]])
+            medicine.append(med)
     
+
+    gender.append('M')
+    medicine.append(178)
+
+    gender.append('M')
+    medicine.append(179)
+
+    gender.append('M')
+    medicine.append(179)
+
     data = {"Gender": gender, "Medication ID": medicine}
     df = pd.DataFrame(data)
     medication_counts = df.groupby(['Gender', 'Medication ID']).size().reset_index(name='Counts')
 
     male_counts = medication_counts[medication_counts['Gender'] == 'M']['Counts']
+    # male_counts.drop('index', inplace=True, axis=1)
     female_counts = medication_counts[medication_counts['Gender'] == 'F']['Counts']
 
-    breakpoint()
     fig, ax = plt.subplots()
 
+    breakpoint()
     # medicine_ids = list(dataset.voc[0]['med_voc'].idx2word.keys())
-    medicine_ids = list(range(100))
+    medicine_ids = list(range(180))
 
     rects1 = ax.bar(medicine_ids, male_counts, label='Male')
     rects2 = ax.bar(medicine_ids, female_counts, label='Female')
@@ -99,14 +174,12 @@ def gender_medicine_bar_chart(dataset):
     # Show the plot
     plt.show()
 
-
-
 def insurance_medicine(dataset):
     insurance = []
     medicine = []
     for patient in dataset.data[0][0]:
         for med in patient[2]:
-            insurance.append(dataset.voc[0]["insurance_voc"].idx2word[patient[6]])
+            insurance.append(dataset.voc[0]["gender_voc"].idx2word[patient[5]])
             medicine.append(med)
 
     table = pd.crosstab(insurance, medicine)
@@ -117,7 +190,7 @@ def insurance_medicine(dataset):
 
     # Plot the heatmap using seaborn
     # sns.countplot(x="Insurance", hue="Medication", data=df)
-    sns.heatmap(table, annot=False, fmt='d', cmap="YlOrRd", cbar=False, vmax=100)
+    sns.heatmap(table, annot=False, fmt='d', cmap="YlOrRd", cbar=False, vmax=3)
 
     # Add labels and title to the plot
     plt.xlabel("Medicine")
@@ -134,7 +207,6 @@ def insurance_medicine(dataset):
     # plt.ylabel('Insurance')
     # plt.title('Heatmap of Insurance and Medication')
     # plt.show()
-
 
 def age_medicine_count(dataset):
 
@@ -170,35 +242,78 @@ def age_medicine_count(dataset):
     print("The Spearman's rank correlation coefficient is", rho)
     print("The p-value is", p_value)
 
-    # plt.show()
-
+    plt.show()
 
 def age_dist_histogram(dataset):
-    age = []
+
+    # Child (0-14)
+    child = 0
+
+    # Youth (15-24)
+    youth = 0
+
+    # Adult (25-64)
+    adult = 0
+
+    # Seniors 65+
+    seniors = 0
+
+    all_ages = {}
+    all_ages[90] = 0
+
     for patient in dataset.data[0][0]:
         true_age = dataset.voc[0]["age_voc"].idx2word[patient[3]]
+
+        if true_age < 16:
+            continue
+
         if true_age > 90:
-            true_age = 90
-        age.append(true_age)
+            all_ages[90] += 1
+        else:
+            if true_age in all_ages:
+                all_ages[true_age] += 1
+            else:
+                all_ages[true_age] = 1
 
+        if true_age > 16:
+            # child = child + 1
+            continue
+        elif true_age < 24:
+            youth =  youth + 1
+        elif true_age < 64:
+            adult = adult + 1
+        else:
+        # if true_age > 90:
+            seniors = seniors + 1
 
-    data = {"Age": age}
-    df = pd.DataFrame(data)
+    # age = []
+    # for patient in dataset.data[0][0]:
+    #     true_age = dataset.voc[0]["age_voc"].idx2word[patient[3]]
+    #     if true_age > 90:
+    #         true_age = 90
+    #     age.append(true_age)
 
-    plt.hist(df['Age'], bins=20, edgecolor='black')
-    plt.title("Distribution of Age")
+    print("This is child: ", child)
+    data = {"Youth (15-24)": youth,
+            "Adult (25-64)": adult, "Senior 65+": seniors}
+    # df = pd.DataFrame(data)
+
+    breakpoint()
+    # plt.bar(list(data.keys()), list(data.values()),  edgecolor='black')
+    plt.bar(list(all_ages.keys()), list(all_ages.values()),  edgecolor='black')
+    plt.title("")
     plt.xlabel("Age")
     plt.ylabel("Frequency")
 
 
     plt.show()
 
-
 def age_category_medicine_violin(dataset):
     age = []
     medicine = []
     for patient in dataset.data[0][0]:
         true_age = dataset.voc[0]["age_voc"].idx2word[patient[3]]
+
         if true_age < 14:
             age_category = "Child (0-14)"
         elif true_age < 24:
@@ -225,8 +340,6 @@ def age_category_medicine_violin(dataset):
     # Show the plot
     plt.show()
 
-
-
 def age_medicine(dataset):
     age = []
     medicine = []
@@ -245,7 +358,91 @@ def age_medicine(dataset):
     plt.show()
 
     corr, p_value = pearsonr(df['Age'], df['Medications'])
+    
+    
     print(f'The Pearson correlation coefficient between Age and Medications is {corr:.3f} with a p-value of {p_value:.3f}')
 
 
 
+def age_category_medicine_violin_two(dataset):
+
+    age = []
+    medicine = []
+    for patient in dataset.data[0][0]:
+        true_age = dataset.voc[0]["age_voc"].idx2word[patient[3]]
+
+        if true_age < 14:
+            continue
+        elif true_age > 90:
+            true_age = 90
+
+        for med in patient[2]:
+            if med < 100:
+                age.append(true_age)
+                medicine.append(med)
+
+    table = pd.crosstab(age, medicine)
+    sns.heatmap(table, annot=False, fmt='d', cmap="YlOrRd", cbar=False, vmax=3000)
+
+    # Add labels and title to the plot
+    plt.xlabel("Medicine")
+    plt.ylabel("Age")
+    plt.title("Medication Count by Age Category")
+
+    # Show the plot
+    plt.show()
+
+def age_category_medicine_violin_three(dataset):
+
+    age_dict = {}
+
+    for i in range(91)[20: :10]:
+        age_dict[i] = []
+
+    for patient in dataset.data[0][0]:
+        true_age = dataset.voc[0]["age_voc"].idx2word[patient[3]]
+        true_age = round(true_age/10)*10
+
+        if true_age < 16:
+            continue
+        elif true_age > 90:
+            true_age = 90
+
+        for med in patient[2]:
+            # if med < 100:
+            age_dict[true_age].append(med)
+
+
+    for age in age_dict:
+        x = collections.Counter(age_dict[age])
+        y = x.most_common(10)[5:]
+        age_dict[age] = list(map(lambda x: x[0], y))
+
+
+    data = age_dict
+    values = np.unique([value for sublist in data.values() for value in sublist])
+
+    # Create a 2D array of values from the dictionary data
+    arr = np.zeros((len(data), len(values)))
+    for i, label in enumerate(data.keys()):
+        for j, value in enumerate(values):
+            if value in data[label]:
+                arr[i, j] = value
+
+    # Create a DataFrame with the row and column labels
+    df = pd.DataFrame(arr, columns=values, index=data.keys())
+
+    # Create the heatmap using seaborn
+    ax = sns.heatmap(df, annot=False, cmap="YlGnBu")
+
+    # Set the X-axis label
+    ax.set_xlabel('Medicine Code')
+
+    # Set the Y-axis label
+    ax.set_ylabel('Rounded Age')
+
+    # Set the X-axis tick labels to the actual values
+    ax.set_xticklabels(values)
+
+    # Show the plot
+    plt.show()

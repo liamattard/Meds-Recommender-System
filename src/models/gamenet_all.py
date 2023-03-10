@@ -12,11 +12,13 @@ class Model(nn.Module):
     def __init__(self, ehr_adj, device, features, voc, emb_dim=64):
         super(Model, self).__init__()
 
+        self.n = 5
+
         self.med_voc_len = len(voc["med_voc"].idx2word)
 
         self.embeddings = []
 
-        self.g_diagnosis_insurance= {}
+        self.user_feature_matrix = []
 
         self.diag_embeddings = nn.Embedding(
             len(voc["diag_voc"].idx2word), emb_dim)
@@ -30,6 +32,8 @@ class Model(nn.Module):
 
         self.embeddings.append(self.proc_embeddings)
         self.embeddings.append(self.diag_embeddings)
+
+        self.age_voc = voc["age_voc"]
 
         self.device = device
         self.dropout = nn.Dropout(p=0.4)
@@ -55,42 +59,43 @@ class Model(nn.Module):
     def forward(self, input):
 
         def get_KNN(input):
-            knn_tensor = torch.zeros(1, self.med_voc_len).to(self.device)
 
+            
+            knn_tensor = torch.zeros(1, self.med_voc_len).to(self.device)
             insurance = input["insurance"]
-            age = round(input["age"]/10)*10
+            age = self.age_voc.idx2word[input["age"]]
             gender = input["gender"]
             g_diagnosis = input["g_diagnosis"]
+            medicine_input = input["medicine"]
 
-            if g_diagnosis in self.g_diagnosis_age:
-                if insurance in self.g_diagnosis_insurance[g_diagnosis]:
-                    if age in self.g_diagnosis_insurance[g_diagnosis][insurance]:
-                        if gender in self.g_diagnosis_insurance[g_diagnosis][insurance][age]:
-                            medicine = self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender]
-                            knn_tensor[:, list(medicine)] = 1
 
-                            self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender].update(
-                                input["medicine"][-1])
+            scores = []
 
-                            return knn_tensor
-                        else:
-                            self.g_diagnosis_age[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
+            for i in self.user_feature_matrix:
+                score_insurance = 1 if (insurance == i[0]) else 0
+                score_age  = 1 if abs(i[1] - age) < 10 else 0
+                score_gender = 1 if (gender == i[2]) else 0
+                score_g_diagnosis = 1 if (g_diagnosis == i[3]) else 0
+                final_score = score_insurance + score_age + score_gender + score_g_diagnosis
+                scores.append(final_score)
 
-                    else:
-                        self.g_diagnosis_age[g_diagnosis][insurance][age] = {}
-                        self.g_diagnosis_age[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
-                
-                else:
-                    self.g_diagnosis_insurance[g_diagnosis][insurance] = {}
-                    self.g_diagnosis_insurance[g_diagnosis][insurance][age] = {}
-                    self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
-            else:
-                self.g_diagnosis_insurance[g_diagnosis] = {}
-                self.g_diagnosis_insurance[g_diagnosis][insurance] = {}
-                self.g_diagnosis_insurance[g_diagnosis][insurance][age] = {}
-                self.g_diagnosis_insurance[g_diagnosis][insurance][age][gender] = set(input["medicine"][-1])
+            sorted_lst = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+            top_ids = sorted_lst[:self.n]
 
-            return None
+            medicine = set()
+
+            if len(sorted_lst) > 5:
+                for i in top_ids:
+                    med_ids = self.user_feature_matrix[i][4][-1]
+                    medicine.update(med_ids)
+                # res_list = [self.user_feature_matrix[i][4] for i in top_ids]
+
+                knn_tensor[:, list(medicine)] = 1
+
+
+            self.user_feature_matrix.append([insurance, age, gender, g_diagnosis, medicine_input])
+
+            return knn_tensor
 
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)

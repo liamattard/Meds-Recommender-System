@@ -16,7 +16,7 @@ class Model(nn.Module):
         self.device = device
         self.embeddings = nn.ModuleList(
             [nn.Embedding(vocab_size[i], emb_dim) for i in range(K-1)])
-        self.dropout = nn.Dropout(p=0.4)
+        self.dropout = nn.Dropout(p=0.5)
 
         self.encoders = nn.ModuleList([nn.GRU(
                 emb_dim, emb_dim * 2, 

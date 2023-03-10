@@ -68,7 +68,7 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
 
         metrics_map = {}
         model.train()
-        model.g_diagnosis_age = {}
+        model.user_feature_matrix = []
         print('\nepoch {} --------------------------'.format(epoch + 1))
 
         num_batches = range(0, len(data_train), batches)
@@ -247,8 +247,7 @@ def calculate_input(features, input):
             input_map["procedures"] = proc_seq
 
 
-        if "insurance" in features:
-            input_map["insurance"] = [[input[6]]] * input_map["size"]
+        input_map["insurance"] = input[6]
 
         input_map["age"] = input[3]
         input_map["g_diagnosis"] = input[7]
@@ -339,8 +338,23 @@ def results_from_metric_map(metrics_map):
 
     return results
 
+def original_loss(med_voc_len, patient, target_output, device):
 
-def loss_function(med_voc_len, patient, target_output, device):
+    loss_bce_target = np.zeros((1, med_voc_len))
+    loss_bce_target[:, patient[2]] = 1
+
+    loss_multi_target = np.full((1, med_voc_len), -1)
+    for idx, item in enumerate(patient[2]):
+        loss_multi_target[0][idx] = item
+
+    loss_bce = F.binary_cross_entropy_with_logits(
+        target_output, torch.FloatTensor(loss_bce_target).to(device))
+    loss_multi = F.multilabel_margin_loss(
+        torch.sigmoid(target_output), torch.LongTensor(loss_multi_target).to(device))
+
+    return 0.9 * loss_bce + 0.1 * loss_multi
+
+def new_loss(med_voc_len, patient, target_output, device):
 
     loss_bce_target = np.zeros((1, med_voc_len))
     loss_bce_target[:, patient[2]] = 1
@@ -356,3 +370,6 @@ def loss_function(med_voc_len, patient, target_output, device):
     loss_mse =  loss(torch.sigmoid(target_output),torch.FloatTensor(loss_bce_target).to(device))
 
     return 0.5 * loss_bce + 0.5 * loss_mse
+
+def loss_function(med_voc_len, patient, target_output, device):
+    return original_loss(med_voc_len, patient, target_output, device)

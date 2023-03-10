@@ -1,6 +1,7 @@
 from src.utils.constants.model_types import Model_Type
 from src.utils.constants.dataset_types import Dataset_Type
 
+import sys
 import src.data_handler.start as load_data
 import src.model_trainer.start as train_test
 import src.probability_tests.tests as probability_tests
@@ -12,6 +13,12 @@ import numpy as np
 # -age
 # -diagnosis
 # -procedures
+
+def diagrams():
+    dataset_type = Dataset_Type.all_3
+    dataset = load_data.start(dataset_type)
+
+    probability_tests.start(dataset)
 
 def main():
 
@@ -25,7 +32,7 @@ def main():
     train_test.start(dataset=dataset,
                      dataset_type=dataset_type,
                      wandb=None,
-                     features=features,
+                     features=None,
                      threshold=0.50,
                      epochs=10,
                      batches=32,
@@ -140,4 +147,6 @@ def filter_visits_with_one(dataset):
 
 
 if __name__ == "__main__":
+    # globals()[sys.argv[1]]()
     main()
+    
