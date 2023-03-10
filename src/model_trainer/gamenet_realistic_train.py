@@ -21,9 +21,10 @@ torch.manual_seed(1203)
 np.random.seed(1203)
 
 
-def use_wandb(wandb_name, config):
+def use_wandb(wandb_name, config, wandb_model_name):
     if wandb_name != None:
-        wandb.init(project=wandb_name, entity="liam_dratta", config=config)
+        wandb.init(project=wandb_name, entity="liam_dratta",
+                   config=config, name=wandb_model_name)
 
 
 def wandb_config(wandb_name, parameters, epoch, lr, batches):
@@ -68,7 +69,7 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
     print('parameters', parameters)
     config = wandb_config(wandb_name, parameters,
                           num_of_epochs, batches=batches, lr=lr)
-    use_wandb(wandb_name, config)
+    use_wandb(wandb_name, config, model_name)
 
     optimizer = optim.Adam(list(model.parameters()), lr=lr)
 
@@ -125,6 +126,7 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
             os.makedirs(model_dir)
 
         torch.save(model.state_dict(), open(path, 'wb'))
+        wandb.finish(quiet=True)
 
 
 def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, features, threshold, train_results, device, model_type, use_original_loss):
