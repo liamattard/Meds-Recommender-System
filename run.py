@@ -26,17 +26,18 @@ def main():
     dataset = load_data.start(dataset_type)
 
     print_statistics_realistic(dataset)
-
-    features = {"diagnosis", "procedures"}
+    model_type = Model_Type.game_net
 
     train_test.start(dataset=dataset,
                      dataset_type=dataset_type,
                      wandb=None,
-                     features=None,
+                     model_type=model_type,
                      threshold=0.50,
                      epochs=10,
                      batches=32,
-                     lr=0.002)
+                     lr=0.0002,
+                     original_loss=True,
+                     model_name="GameNet_w_Batches")
 
 def test(model_type, dataset):
     model_path = "/home/liam/Documents/Masters/saved_models/realistic/gameNet/0_85_threshold/game_net/realistic3/Epoch_49.model"

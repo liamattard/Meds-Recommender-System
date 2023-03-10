@@ -2,9 +2,12 @@ import torch
 import wandb
 import numpy as np
 import torch.nn.functional as F
+from src.utils.constants.model_types import Model_Type
 
 import src.models.gamenet as gamenet
-import src.models.gamenet_all as gamenet_all
+import src.models.demographic_gamenet as demographic_gamenet
+import src.models.collaborative_gamenet as collaborative_gamenet
+import src.models.final_model as final_model 
 
 import torch.optim as optim
 from src.utils.classes.results import Results
@@ -35,20 +38,27 @@ def wandb_config(wandb_name, parameters, epoch, lr, batches):
 
 
 def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
-          batches, lr):
+          batches, lr, model_type, use_original_loss, model_name):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     med_voc_len = len(dataset.voc[0]["med_voc"].idx2word)
 
-    if features == None:
+    if model_type == Model_Type.game_net:
         diag_voc = dataset.voc[0]['diag_voc']
         pro_voc = dataset.voc[0]['pro_voc']
         voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), med_voc_len)
         model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
-    else:
-        model = gamenet_all.Model(
+    elif model_type == Model_Type.game_net_knn:
+        model = demographic_gamenet.Model(
             dataset.ehr_adj[0], device, features, dataset.voc[0])
+    elif model_type == Model_Type.game_net_coll:
+        model = collaborative_gamenet.Model(
+            dataset.ehr_adj[0], device, features, dataset.voc[0])
+    else:
+        model = final_model.Model(
+            dataset.ehr_adj[0], device, features, dataset.voc[0])
+
 
     data_train = dataset.data[0][0]
     data_eval = dataset.data[0][1]
@@ -87,10 +97,10 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
                 llprint('\rTraining batch : {} / {} (size:{})'.format(
                         int(i/batches), len(num_batches), batches))
 
-                seq_input = calculate_input(features, patient)
+                seq_input = calculate_input(model_type, patient)
                 target_output, _ = model(seq_input)
 
-                loss = loss_function(med_voc_len, patient, target_output, device)
+                loss = loss_function(med_voc_len, patient, target_output, device, use_original_loss)
 
                 batch_loss.append(loss)
 
@@ -105,24 +115,21 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
         results = results_from_metric_map(metrics_map)
 
         eval_full_epoch(model, data_eval, med_voc_len,
-                        wandb_name, (epoch + 1), loss_array, features, threshold, results, device)
+                        wandb_name, (epoch + 1), loss_array, features, threshold, results, device, model_type, use_original_loss)
 
-        if features == None:
-            dir = 'saved_models/gameNet/' + dataset_type.name
-        else:
-            dir = 'saved_models/gameNet_all/'+"_".join(list(features))
+        model_dir = 'saved_models/' + model_name
 
-        path = dir + '/' + 'Epoch_{}.model'.format(epoch)
+        path = model_dir + '/' + 'Epoch_{}.model'.format(epoch)
 
-        if not os.path.exists(dir):
-            os.makedirs(dir)
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
 
         torch.save(model.state_dict(), open(path, 'wb'))
 
 
-def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, features, threshold, train_results, device):
+def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, features, threshold, train_results, device, model_type, use_original_loss):
 
-    test_results = eval(model, data_eval, med_voc, features, threshold, device)
+    test_results = eval(model, data_eval, med_voc, features, threshold, device, model_type, use_original_loss)
 
     metrics_dic = {
         "Epoch": epoch,
@@ -165,16 +172,16 @@ def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, fe
         wandb.watch(model)
 
 
-def eval(model, data_eval, med_voc, features, threshold, device):
+def eval(model, data_eval, med_voc, features, threshold, device, model_type, use_original_loss):
     model.eval()
     metrics_map = {}
     loss_arr = []
 
     for step, input in enumerate(data_eval):
 
-        seq_input = calculate_input(features, input)
+        seq_input = calculate_input(model_type, input)
         target_output = model(seq_input)
-        loss_arr.append(loss_function(med_voc, input, target_output, device).item())
+        loss_arr.append(loss_function(med_voc, input, target_output, device, use_original_loss).item())
 
         metrics_map = calculate_metrics(
             med_voc, input, target_output, threshold, metrics_map)
@@ -192,36 +199,15 @@ def eval(model, data_eval, med_voc, features, threshold, device):
     return results
 
 
-def test(model_path, model_type, dataset, features):
+def calculate_input(model_type, input):
+    if model_type == Model_Type.game_net:
+        current_visit = input[:3]
+        seq_input = [current_visit]
+        if input[-1] != []:
+            seq_input = input[-1] + seq_input
 
-    data_train = dataset.data[0][0]
-    data_eval = dataset.data[0][1]
-
-    voc_size, device = load_data(dataset, model_type)
-    model = gamenet.Model(voc_size, dataset.ehr_adj[0], device)
-
-    model.load_state_dict(torch.load(
-        open(model_path, 'rb'), map_location=device))
-    model.to(device=device)
-
-    result = []
-
-    eval_full_epoch(model, data_train, data_eval,  model_type,
-                    None, 0, [], features, torch.threshold)
-
-    result = np.array(result)
-    mean = result.mean(axis=0)
-    std = result.std(axis=0)
-
-    outstring = ""
-    for m, s in zip(mean, std):
-        outstring += "{:.4f} $\pm$ {:.4f} & ".format(m, s)
-
-    print(outstring)
-
-
-def calculate_input(features, input):
-    if features != None:
+        return seq_input
+    else:
         input_map = {}
         input_map["size"] = 1 + len(input[-1])
 
@@ -240,12 +226,11 @@ def calculate_input(features, input):
 
         input_map["medicine"] = med_seq
 
-        if "diagnosis" in features:
-            input_map["diagnosis"] = diag_seq
+        input_map["diagnosis"] = diag_seq
 
-        if "procedures" in features:
-            input_map["procedures"] = proc_seq
+        input_map["procedures"] = proc_seq
 
+        input_map["patient_id"] = input[4]
 
         input_map["insurance"] = input[6]
 
@@ -254,13 +239,6 @@ def calculate_input(features, input):
         input_map["gender"] = input[5]
 
         return input_map
-    else:
-        current_visit = input[:3]
-        seq_input = [current_visit]
-        if input[-1] != []:
-            seq_input = input[-1] + seq_input
-
-        return seq_input
 
 
 def calculate_metrics(med_voc, input, target_output, threshold, metrics_map):
@@ -371,5 +349,8 @@ def new_loss(med_voc_len, patient, target_output, device):
 
     return 0.5 * loss_bce + 0.5 * loss_mse
 
-def loss_function(med_voc_len, patient, target_output, device):
-    return original_loss(med_voc_len, patient, target_output, device)
+def loss_function(med_voc_len, patient, target_output, device, use_original_loss):
+    if use_original_loss:
+        return original_loss(med_voc_len, patient, target_output, device)
+    else:
+        return new_loss(med_voc_len, patient, target_output, device)

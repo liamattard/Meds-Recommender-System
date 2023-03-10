@@ -33,10 +33,8 @@ class Model(nn.Module):
         self.embeddings.append(self.proc_embeddings)
         self.embeddings.append(self.diag_embeddings)
 
-        self.age_voc = voc["age_voc"]
-
         self.device = device
-        self.dropout = nn.Dropout(p=0.4)
+        self.dropout = nn.Dropout(p=0.5)
 
         self.query = nn.Sequential(
             nn.Linear(emb_dim * 4, self.med_voc_len),
@@ -47,55 +45,23 @@ class Model(nn.Module):
         self.ehr_gcn = GCN(voc_size=self.med_voc_len,
                            emb_dim=self.med_voc_len, adj=ehr_adj, device=device)
 
-        self.knn_output = nn.Sequential(
+        self.output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(self.med_voc_len *3, self.med_voc_len*2),
+            nn.Linear(self.med_voc_len * 3, self.med_voc_len*2),
             nn.ReLU(),
-            nn.Linear(self.med_voc_len *2, self.med_voc_len)
+            nn.Linear(self.med_voc_len * 2, self.med_voc_len)
         )
+
+        # Collaborative Filtering
+        self.cf_emb_dim = 16
+        self.med_embeddings = nn.Embedding(
+            len(voc["med_voc"].idx2word), self.cf_emb_dim)
+        self.user_embeddings = nn.Embedding(
+            len(voc["patient_voc"].idx2word), self.cf_emb_dim)
 
         self.init_weights()
 
     def forward(self, input):
-
-        def get_KNN(input):
-
-            
-            knn_tensor = torch.zeros(1, self.med_voc_len).to(self.device)
-            insurance = input["insurance"]
-            age = self.age_voc.idx2word[input["age"]]
-            gender = input["gender"]
-            g_diagnosis = input["g_diagnosis"]
-            medicine_input = input["medicine"]
-
-
-            scores = []
-
-            for i in self.user_feature_matrix:
-                score_insurance = 1 if (insurance == i[0]) else 0
-                score_age  = 1 if abs(i[1] - age) < 10 else 0
-                score_gender = 1 if (gender == i[2]) else 0
-                score_g_diagnosis = 1 if (g_diagnosis == i[3]) else 0
-                final_score = score_insurance + score_age + score_gender + score_g_diagnosis
-                scores.append(final_score)
-
-            sorted_lst = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-            top_ids = sorted_lst[:self.n]
-
-            medicine = set()
-
-            if len(sorted_lst) > 5:
-                for i in top_ids:
-                    med_ids = self.user_feature_matrix[i][4][-1]
-                    medicine.update(med_ids)
-                # res_list = [self.user_feature_matrix[i][4] for i in top_ids]
-
-                knn_tensor[:, list(medicine)] = 1
-
-
-            self.user_feature_matrix.append([insurance, age, gender, g_diagnosis, medicine_input])
-
-            return knn_tensor
 
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
@@ -131,7 +97,8 @@ class Model(nn.Module):
         patient_representations = torch.cat(
             encoders, dim=-1).squeeze(dim=0)  # (seq, dim*4)
 
-        queries = self.query(patient_representations).to(self.device)  # (seq, dim)
+        queries = self.query(patient_representations).to(
+            self.device)  # (seq, dim)
 
         # graph memory module
         '''I:generate current input'''
@@ -144,13 +111,17 @@ class Model(nn.Module):
             torch.mm(query, drug_memory.t()), dim=-1)  # (1, size)
         fact1 = torch.mm(key_weights1, drug_memory)  # (1, dim)
 
-        knn_output = get_KNN(input)
+        med_embeddings = self.dropout(self.med_embeddings.weight.T
+                                      .to(self.device))
 
-        if knn_output is None:
-            knn_output = query.to(self.device)
+        user_embeddings = self.user_embeddings(
+            torch.LongTensor([input["patient_id"]]).to(self.device))
+        x = torch.matmul(user_embeddings, med_embeddings)
 
-        temp_output = torch.cat([knn_output, query, fact1])
-        final_knn_output = self.knn_output(temp_output.view(-1))
+        temp_output = torch.cat(
+            [x, query, fact1])
+
+        final_knn_output = self.output(temp_output.view(-1))
 
         if self.training:
             return final_knn_output.unsqueeze(dim=0), None
@@ -162,6 +133,7 @@ class Model(nn.Module):
         initrange = 0.1
         for item in self.embeddings:
             item.weight.data.uniform_(-initrange, initrange)
+
 
 class GCN(nn.Module):
     def __init__(self, voc_size, emb_dim, adj, device=torch.device('cpu:0')):

@@ -35,13 +35,6 @@ class Model(nn.Module):
 
         self.age_voc = voc["age_voc"]
 
-        # Collaborative Filtering
-        self.cf_emb_dim = 16
-        self.med_embeddings = nn.Embedding(
-            len(voc["med_voc"].idx2word), self.cf_emb_dim)
-        self.user_embeddings = nn.Embedding(
-            len(voc["patient_voc"].idx2word), self.cf_emb_dim)
-
         self.device = device
         self.dropout = nn.Dropout(p=0.5)
 
@@ -56,7 +49,7 @@ class Model(nn.Module):
 
         self.knn_output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(self.med_voc_len *4, self.med_voc_len*2),
+            nn.Linear(self.med_voc_len *3, self.med_voc_len*2),
             nn.ReLU(),
             nn.Linear(self.med_voc_len *2, self.med_voc_len)
         )
@@ -151,22 +144,12 @@ class Model(nn.Module):
             torch.mm(query, drug_memory.t()), dim=-1)  # (1, size)
         fact1 = torch.mm(key_weights1, drug_memory)  # (1, dim)
 
-
-        # Collaborative Filtering
-        med_embeddings = self.dropout(self.med_embeddings.weight.T
-                                      .to(self.device))
-
-        user_embeddings = self.user_embeddings(
-            torch.LongTensor([input["patient_id"]]).to(self.device))
-        coll_result = torch.matmul(user_embeddings, med_embeddings)
-
-        # Demographic Based
         knn_output = get_KNN(input)
 
         if knn_output is None:
             knn_output = query.to(self.device)
 
-        temp_output = torch.cat([coll_result, knn_output, query, fact1])
+        temp_output = torch.cat([knn_output, query, fact1])
         final_knn_output = self.knn_output(temp_output.view(-1))
 
         if self.training:

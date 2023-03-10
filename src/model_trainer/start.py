@@ -6,7 +6,7 @@ import src.utils.tools as tools
 
 
 def start(dataset, dataset_type, wandb, features=None, threshold=None,
-          epochs=None, model_type=None, lr=0.0002, batches=None):
+          epochs=None, model_type=None, lr=0.0002, batches=None, original_loss = True, model_name = "model"):
 
     if model_type == Model_Type.top_20:
         gamenet_realistic_train_top.train(
@@ -16,7 +16,7 @@ def start(dataset, dataset_type, wandb, features=None, threshold=None,
         gamenet_realistic_train.train(
             dataset=dataset, dataset_type=dataset_type, wandb_name=wandb,
             features=features, threshold=threshold, num_of_epochs=epochs, lr=lr,
-            batches=batches)
+            batches=batches, model_type=model_type, use_original_loss=original_loss, model_name=model_name)
 
     else:
         gamenet_train.train(dataset, dataset_type, model_type, wandb)
