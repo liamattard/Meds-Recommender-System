@@ -126,7 +126,7 @@ def train(dataset, dataset_type, wandb_name, features, threshold, num_of_epochs,
             os.makedirs(model_dir)
 
         torch.save(model.state_dict(), open(path, 'wb'))
-        wandb.finish(quiet=True)
+    wandb.finish(quiet=True)
 
 
 def eval_full_epoch(model, data_eval, med_voc, wandb_name, epoch, loss_array, features, threshold, train_results, device, model_type, use_original_loss):
