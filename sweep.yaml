@@ -1,0 +1,22 @@
+method: bayes
+metric:
+  goal: minimize
+  name: Testing precision recall AUC
+parameters:
+  batches:
+    distribution: int_uniform
+    max: 64
+    min: 1
+  epochs:
+    distribution: int_uniform
+    max: 100
+    min: 10
+  learning_rate:
+    distribution: uniform
+    max: 0.004
+    min: 0.0001
+  parameters:
+    distribution: int_uniform
+    max: 2289308
+    min: 391935
+program: train.py

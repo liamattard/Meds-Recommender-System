@@ -95,7 +95,7 @@ class Model(nn.Module):
 
             self.user_feature_matrix.append([insurance, age, gender, g_diagnosis, medicine_input])
 
-            return knn_tensor
+            return self.dropout(knn_tensor)
 
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
@@ -145,9 +145,6 @@ class Model(nn.Module):
         fact1 = torch.mm(key_weights1, drug_memory)  # (1, dim)
 
         knn_output = get_KNN(input)
-
-        if knn_output is None:
-            knn_output = query.to(self.device)
 
         temp_output = torch.cat([knn_output, query, fact1])
         final_knn_output = self.knn_output(temp_output.view(-1))

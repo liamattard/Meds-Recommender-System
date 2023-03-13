@@ -27,83 +27,17 @@ def main():
 
     print_statistics_realistic(dataset)
 
-    print("Starting GameNet with Batches and low LR")
-    model_type = Model_Type.game_net
-    train_test.start(dataset=dataset,
-                     dataset_type=dataset_type,
-                     wandb="Final",
-                     model_type=model_type,
-                     threshold=0.85,
-                     epochs=50,
-                     batches=32,
-                     lr=0.0002,
-                     original_loss=True,
-                     model_name="GameNet_w_Batches_0.0002)")
-
-    print("Starting GameNet with Batches and better LR")
-    model_type = Model_Type.game_net
-    train_test.start(dataset=dataset,
-                     dataset_type=dataset_type,
-                     wandb="Final",
-                     model_type=model_type,
-                     threshold=0.85,
-                     epochs=50,
-                     batches=32,
-                     lr=0.002,
-                     original_loss=True,
-                     model_name="GameNet_w_Batches_0.002")
-
-    print("Starting GameNet with new loss function")
-    model_type = Model_Type.game_net
-    train_test.start(dataset=dataset,
-                     dataset_type=dataset_type,
-                     wandb="Final",
-                     model_type=model_type,
-                     threshold=0.85,
-                     epochs=50,
-                     batches=32,
-                     lr=0.002,
-                     original_loss=False,
-                     model_name="GameNet_w_New_Loss")
-
-    print("Starting Demographic GameNet")
     model_type = Model_Type.game_net_knn
     train_test.start(dataset=dataset,
                      dataset_type=dataset_type,
                      wandb="Final",
                      model_type=model_type,
-                     threshold=0.50,
-                     epochs=50,
+                     threshold=0.52,
+                     epochs=20,
                      batches=32,
-                     lr=0.002,
+                     lr=0.025,
                      original_loss=False,
-                     model_name="Demographic_GameNet")
-
-    print("Starting Collaborative GameNet")
-    model_type = Model_Type.game_net_coll
-    train_test.start(dataset=dataset,
-                     dataset_type=dataset_type,
-                     wandb="Final",
-                     model_type=model_type,
-                     threshold=0.50,
-                     epochs=50,
-                     batches=32,
-                     lr=0.002,
-                     original_loss=False,
-                     model_name="Collaborative_GameNet")
-
-    print("Starting Final Model")
-    model_type = Model_Type.final_model
-    train_test.start(dataset=dataset,
-                     dataset_type=dataset_type,
-                     wandb="Final",
-                     model_type=model_type,
-                     threshold=0.50,
-                     epochs=50,
-                     batches=32,
-                     lr=0.002,
-                     original_loss=False,
-                     model_name="Final_Model")
+                     model_name="test New Demographic")
 
 def test(model_type, dataset):
     model_path = "/home/liam/Documents/Masters/saved_models/realistic/gameNet/0_85_threshold/game_net/realistic3/Epoch_49.model"

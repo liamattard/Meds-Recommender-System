@@ -37,19 +37,24 @@ class Model(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
 
         self.query = nn.Sequential(
-            nn.Linear(emb_dim * 4, self.med_voc_len),
             nn.LeakyReLU(),
-            nn.Linear(self.med_voc_len, self.med_voc_len),
+            nn.Linear(emb_dim*4, emb_dim),
+        )
+
+        self.coll_output = nn.Sequential(
+            nn.LeakyReLU(),
+            nn.Linear(self.med_voc_len, emb_dim),
+            nn.Dropout(p=0.3)
         )
 
         self.ehr_gcn = GCN(voc_size=self.med_voc_len,
-                           emb_dim=self.med_voc_len, adj=ehr_adj, device=device)
+                           emb_dim=emb_dim, adj=ehr_adj, device=device)
 
         self.output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(self.med_voc_len * 3, self.med_voc_len*2),
+            nn.Linear(emb_dim * 3, emb_dim *2),
             nn.ReLU(),
-            nn.Linear(self.med_voc_len * 2, self.med_voc_len)
+            nn.Linear(emb_dim * 2, self.med_voc_len)
         )
 
         # Collaborative Filtering
@@ -117,16 +122,17 @@ class Model(nn.Module):
         user_embeddings = self.user_embeddings(
             torch.LongTensor([input["patient_id"]]).to(self.device))
         x = torch.matmul(user_embeddings, med_embeddings)
+        coll_output = self.coll_output(x)
 
         temp_output = torch.cat(
-            [x, query, fact1])
+            [coll_output, query, fact1], dim=-1)
 
-        final_knn_output = self.output(temp_output.view(-1))
+        final_knn_output = self.output(temp_output)
 
         if self.training:
-            return final_knn_output.unsqueeze(dim=0), None
+            return final_knn_output, None
         else:
-            return final_knn_output.unsqueeze(dim=0)
+            return final_knn_output
 
     def init_weights(self):
         """Initialize weights."""
