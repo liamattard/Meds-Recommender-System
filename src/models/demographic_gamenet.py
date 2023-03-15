@@ -39,19 +39,22 @@ class Model(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
 
         self.query = nn.Sequential(
-            nn.Linear(emb_dim * 4, self.med_voc_len),
             nn.LeakyReLU(),
-            nn.Linear(self.med_voc_len, self.med_voc_len),
+            nn.Linear(emb_dim * 4, emb_dim),
+        )
+
+        self.output = nn.Sequential(
+            nn.LeakyReLU(),
+            nn.Linear(emb_dim * 2, self.med_voc_len),
+            self.dropout
         )
 
         self.ehr_gcn = GCN(voc_size=self.med_voc_len,
-                           emb_dim=self.med_voc_len, adj=ehr_adj, device=device)
+                           emb_dim=emb_dim, adj=ehr_adj, device=device)
 
         self.knn_output = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(self.med_voc_len *3, self.med_voc_len*2),
-            nn.ReLU(),
-            nn.Linear(self.med_voc_len *2, self.med_voc_len)
+            nn.Linear(self.med_voc_len *2, self.med_voc_len),
         )
 
         self.init_weights()
@@ -95,7 +98,8 @@ class Model(nn.Module):
 
             self.user_feature_matrix.append([insurance, age, gender, g_diagnosis, medicine_input])
 
-            return self.dropout(knn_tensor)
+            # return self.dropout(knn_tensor)
+            return knn_tensor
 
         def mean_embedding(embedding):
             return embedding.mean(dim=1).unsqueeze(dim=0)  # (1,1,dim)
@@ -145,14 +149,16 @@ class Model(nn.Module):
         fact1 = torch.mm(key_weights1, drug_memory)  # (1, dim)
 
         knn_output = get_KNN(input)
+        gamenet_output = self.output(
+            torch.cat([query, fact1], dim=-1))
 
-        temp_output = torch.cat([knn_output, query, fact1])
-        final_knn_output = self.knn_output(temp_output.view(-1))
+        temp_output = torch.cat([knn_output, gamenet_output], dim=-1)
+        final_knn_output = self.knn_output(temp_output)
 
         if self.training:
-            return final_knn_output.unsqueeze(dim=0), None
+            return final_knn_output, None
         else:
-            return final_knn_output.unsqueeze(dim=0)
+            return final_knn_output
 
     def init_weights(self):
         """Initialize weights."""
