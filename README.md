@@ -1,4 +1,4 @@
-Thesis project
+#Thesis project
 
 A medicine recommender system based on the MIMIC-III Dataset. The aim
 of this project is to train a model that is able to accept a number
